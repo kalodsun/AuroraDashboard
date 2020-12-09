@@ -53,6 +53,8 @@ namespace AuroraDashboard
 
         public double[] mineralPrices = new double[Enum.GetValues(typeof(MineralType)).Length];
 
+        public Func<ChartPoint, string> mineralLabelFunc = (chartPoint) => (chartPoint.Y / 1000).ToString("N0") + "K";
+
         private void CalcMineralPrice() {
             MineralPriceMod priceMod = MineralPriceMod.noMod;
             switch (cmbPriceMod.SelectedIndex) {
@@ -63,13 +65,13 @@ namespace AuroraDashboard
 
             double mineralSum = 0;
             for (int i = 0; i < curRace.minerals.Length; i++) {
-                mineralSum += curRace.minerals[i] * priceMod.priceMult[i];
+                mineralSum += curRace.minerals[i] / priceMod.priceMult[i];
             }
 
             double avgMineralAmt = mineralSum / curRace.minerals.Length;
 
             for (int i = 0; i < curRace.minerals.Length; i++) {
-                mineralPrices[i] = avgMineralAmt / curRace.minerals[i];
+                mineralPrices[i] = avgMineralAmt / (curRace.minerals[i] / priceMod.priceMult[i]);
             }
 
             OnPriceChanged();
@@ -81,14 +83,22 @@ namespace AuroraDashboard
         {
             InitializeComponent();
 
-            cmbStockpileMineral.Items.Add("All minerals (amount)");
-            cmbStockpileMineral.Items.Add("All minerals (price)");
+            cmbStockpilePieMineral.Items.Add("All minerals (amount)");
+            cmbStockpilePieMineral.Items.Add("All minerals (price)");
             foreach(string name in Enum.GetNames(typeof(MineralType))) {
-                cmbStockpileMineral.Items.Add(name);
+                cmbStockpilePieMineral.Items.Add(name);
             }
-            cmbStockpileMineral.SelectedIndex = 0;
+            cmbStockpilePieMineral.SelectedIndex = 0;
 
             pieStockpiles.Series = pieStockpilesSeries;
+
+            chrtMineralPrice.Series[0].LabelPoint = (chartPoint) => chartPoint.Y.ToString("F2");
+            chrtMineralStockpile.Series[0].LabelPoint = mineralLabelFunc;
+            chrtMineralPrice.AxisX[0].Labels = Enum.GetNames(typeof(MineralType));
+            chrtMineralStockpile.AxisX[0].Labels = Enum.GetNames(typeof(MineralType));
+
+            chrtMineralPrice.AxisY[0].MinValue = 0;
+            chrtMineralPrice.AxisY[0].MaxValue = 4;
         }
 
         private async void btnLoadDB_Click(object sender, RoutedEventArgs e) {
@@ -133,7 +143,9 @@ namespace AuroraDashboard
         }
 
         void OnPriceChanged() {
-            if(cmbStockpileMineral.SelectedIndex == 1) {
+            chrtMineralPrice.Series[0].Values = new ChartValues<double>(mineralPrices);
+
+            if (cmbStockpilePieMineral.SelectedIndex == 1) {
                 RecalculateStockpilePie();
             }
         }
@@ -148,35 +160,55 @@ namespace AuroraDashboard
 
         void PopulateMineralTab() {
             RecalculateStockpilePie();
+
+            chrtMineralStockpile.Series[0].Values = new ChartValues<double>(curRace.minerals);
         }
 
         void RecalculateStockpilePie() {
-            pieStockpilesSeries.Clear();
+            pieStockpiles.UpdaterState = UpdaterState.Paused;
+            //pieStockpilesSeries.Clear();
 
-            Func<AurPop, double> amountFunc;
-            if(cmbStockpileMineral.SelectedIndex > 1) {
-                amountFunc = pop => pop.minerals[cmbStockpileMineral.SelectedIndex-2];
-            } else if(cmbStockpileMineral.SelectedIndex == 1) {
-                amountFunc = pop => {
+            Func<double[], double> amountFunc;
+            if(cmbStockpilePieMineral.SelectedIndex > 1) {
+                amountFunc = minerals => minerals[cmbStockpilePieMineral.SelectedIndex-2];
+            } else if(cmbStockpilePieMineral.SelectedIndex == 1) {
+                amountFunc = minerals => {
                     double result = 0;
-                    for (int i = 0; i < pop.minerals.Length; i++) {
-                        result += pop.minerals[i] * mineralPrices[i];
+                    for (int i = 0; i < minerals.Length; i++) {
+                        result += minerals[i] * mineralPrices[i];
                     }
                     return result;
                 };
             } else {
-                amountFunc = pop => pop.minerals.Sum();
+                amountFunc = minerals => minerals.Sum();
             }
 
-            foreach (AurPop pop in (from pop in curRace.populations where amountFunc(pop) > 0 orderby amountFunc(pop) descending select pop)) {
+            int seriesIdx = 0;
+            foreach (AurPop pop in (from pop in curRace.populations where amountFunc(pop.minerals) > 0 orderby amountFunc(pop.minerals) descending select pop)) {
                 ChartValues<double> val = new ChartValues<double>();
-                val.Add(amountFunc(pop));
+                val.Add(amountFunc(pop.minerals));
 
-                PieSeries pieSeries = new PieSeries();
+                PieSeries pieSeries;
+                if (pieStockpilesSeries.Count <= seriesIdx) {
+                    pieSeries = new PieSeries();
+                    pieStockpilesSeries.Add(pieSeries);
+                } else {
+                    pieSeries = (PieSeries)pieStockpilesSeries[seriesIdx];
+                }
+
                 pieSeries.Values = val;
-                pieSeries.Title = pop.name;
-                pieStockpilesSeries.Add(pieSeries);
+                pieSeries.Title = "";
+                pieSeries.LabelPoint = (chartPoint) => { return pop.name + "\n" + mineralLabelFunc(chartPoint); };
+                pieSeries.DataLabels = amountFunc(pop.minerals) / amountFunc(curRace.minerals) > 0.07;
+                seriesIdx++;
             }
+
+            while (pieStockpilesSeries.Count > seriesIdx) {
+                pieStockpilesSeries.RemoveAt(seriesIdx);
+            }
+
+            pieStockpiles.UpdaterState = UpdaterState.Running;
+            pieStockpiles.Update();
         }
 
         private void cmbGame_SelectionChanged(object sender, SelectionChangedEventArgs e) {
