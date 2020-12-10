@@ -25,7 +25,7 @@
             <TabItem Header="Summary">
                 <Grid Background="#FFE5E5E5"/>
             </TabItem>
-            <TabItem Header="Minerals">
+            <TabItem Header="Empire Minerals">
                 <Grid Background="#FFE5E5E5">
                     <DataGrid HorizontalAlignment="Left" Height="245" Margin="10,10,0,0" VerticalAlignment="Top" Width="330"/>
                     <lvc:CartesianChart x:Name="chrtMineralPrice" Margin="398,472,748,10" DisableAnimations="True" TooltipTimeout="0">
@@ -58,6 +58,30 @@
                     <lvc:PieChart x:Name="pieStockpiles" Margin="10,605,1539,10" Series="{Binding pieStockpilesSeries}" DisableAnimations="True" TooltipTimeout="0"/>
                     <Label Content="Mineral Stockpiles:" HorizontalAlignment="Left" Margin="10,574,0,0" VerticalAlignment="Top"/>
                     <ComboBox x:Name="cmbStockpilePieMineral" HorizontalAlignment="Left" Margin="124,578,0,0" VerticalAlignment="Top" Width="216" SelectionChanged="cmbStockpileMineral_SelectionChanged"/>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Prospecting">
+                <Grid Background="#FFE5E5E5">
+                    <ComboBox x:Name="cmbProspectTarget" HorizontalAlignment="Left" Margin="123,10,0,0" VerticalAlignment="Top" Width="198" SelectionChanged="cmbProspect_SelectionChanged"/>
+                    <ComboBox x:Name="cmbProspectMineral" HorizontalAlignment="Left" Margin="458,10,0,0" VerticalAlignment="Top" Width="198" SelectionChanged="cmbProspect_SelectionChanged"/>
+                    <ComboBox x:Name="cmbProspectFor" HorizontalAlignment="Left" Margin="759,10,0,0" VerticalAlignment="Top" Width="198" SelectionChanged="cmbProspectFor_SelectionChanged"/>
+                    <Label Content="Prospected Mineral" HorizontalAlignment="Left" Margin="340,10,0,0" VerticalAlignment="Top"/>
+                    <Label Content="Prospected Bodies" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top"/>
+                    <Label Content="Prospect For" HorizontalAlignment="Left" Margin="678,10,0,0" VerticalAlignment="Top"/>
+                    <Label x:Name="lblProspectLimit" Content="Amount Limit" HorizontalAlignment="Left" Margin="973,10,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="txtProspectLimit" HorizontalAlignment="Left" Height="23" Margin="1061,12,0,0" TextWrapping="NoWrap" Text="10000000" VerticalAlignment="Top" Width="86" TextAlignment="Right" TextChanged="txtProspectLimit_TextChanged"/>
+                    <lvc:CartesianChart x:Name="chrtProspect" Margin="10,41,10,10" DisableAnimations="True" TooltipTimeout="0">
+                        <lvc:CartesianChart.Series>
+                            <lvc:ColumnSeries Title="Prospect Value" DataLabels="True"/>
+                        </lvc:CartesianChart.Series>
+                        <lvc:CartesianChart.AxisX>
+                            <lvc:Axis LabelsRotation="20" Position="LeftBottom" Title="Prospect Targets">
+                                <lvc:Axis.Separator>
+                                    <lvc:Separator IsEnabled="False" Visibility="Hidden"/>
+                                </lvc:Axis.Separator>
+                            </lvc:Axis>
+                        </lvc:CartesianChart.AxisX>
+                    </lvc:CartesianChart>
                 </Grid>
             </TabItem>
         </TabControl>

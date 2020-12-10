@@ -48,13 +48,28 @@ namespace AuroraDashboard {
         public AurBody parent = null;
         public List<AurBody> children = new List<AurBody>();
 
-        public List<AurPop> populations = new List<AurPop>();
+        public Dictionary<AurRace, AurPop> populations = new Dictionary<AurRace, AurPop>();
         public Dictionary<AurRace, bool> isSurveyed = new Dictionary<AurRace, bool>();
 
+        public bool hasMinerals;
         public double[] minerals = new double[Enum.GetValues(typeof(MineralType)).Length];
         public double[] mineralsAcc = new double[Enum.GetValues(typeof(MineralType)).Length];
         public int surveyPotential;
         public int ruins;
+
+        public string GetName(AurRace viewRace) {
+            if (FirstRaceName != null) {
+                return FirstRaceName;
+            } else if (Name != "") {
+                return Name;
+            } else if (populations.ContainsKey(viewRace)) {
+                return populations[viewRace].name;
+            } else if (viewRace.knownSysIdx.ContainsKey(system)) {
+                return viewRace.knownSysIdx[system].Name;
+            } else {
+                return ID.ToString();
+            }
+        }
     }
 
     public class AurSystem {
@@ -72,6 +87,8 @@ namespace AuroraDashboard {
         public AurPop capital;
         public List<AurRSystem> knownSystems = new List<AurRSystem>();
         public List<AurPop> populations = new List<AurPop>();
+
+        public Dictionary<AurSystem, AurRSystem> knownSysIdx = new Dictionary<AurSystem, AurRSystem>();
     }
 
     public class AurGame {
@@ -80,6 +97,11 @@ namespace AuroraDashboard {
 
         public List<AurRace> Races = new List<AurRace>();
         public List<AurSystem> Systems = new List<AurSystem>();
+
+        public Dictionary<int, AurRace> raceIdx = new Dictionary<int, AurRace>();
+        public Dictionary<int, AurSystem> sysIdx = new Dictionary<int, AurSystem>();
+        public Dictionary<int, AurBody> bodyIdx = new Dictionary<int, AurBody>();
+        public Dictionary<int, AurPop> popIdx = new Dictionary<int, AurPop>();
     }
 
     public class AuroraData {
@@ -91,11 +113,6 @@ namespace AuroraDashboard {
 
         public int[] instToID = new int[Enum.GetValues(typeof(InstallationType)).Length];
         public int[] IDToInst = new int[200];
-
-        public Dictionary<int, AurRace> raceIdx = new Dictionary<int, AurRace>();
-        public Dictionary<int, AurSystem> sysIdx = new Dictionary<int, AurSystem>();
-        public Dictionary<int, AurBody> bodyIdx = new Dictionary<int, AurBody>();
-        public Dictionary<int, AurPop> popIdx = new Dictionary<int, AurPop>();
 
         int getCol(SqliteDataReader reader, string name) {
             for (int i = 0; i < reader.FieldCount; i++) {
@@ -229,7 +246,7 @@ namespace AuroraDashboard {
                     race.ID = reader.GetInt32(getCol(reader, "RaceID"));
                     race.name = reader.GetString(getCol(reader, "RaceName"));
 
-                    raceIdx.Add(race.ID, race);
+                    game.raceIdx.Add(race.ID, race);
                     game.Races.Add(race);
                 }
 
@@ -250,7 +267,7 @@ namespace AuroraDashboard {
                         var body = new AurBody();
 
                         body.ID = bodyReader.GetInt32(getCol(bodyReader, "SystemBodyID"));
-                        body.Name = bodyReader.IsDBNull(getCol(bodyReader, "Name")) ? "n/a" : bodyReader.GetString(getCol(bodyReader, "Name"));
+                        body.Name = bodyReader.IsDBNull(getCol(bodyReader, "Name")) ? "" : bodyReader.GetString(getCol(bodyReader, "Name"));
                         body.system = sys;
 
                         // TODO - stars, star hierarchy
@@ -259,7 +276,7 @@ namespace AuroraDashboard {
                         bool parentStar = bodyReader.GetInt32(getCol(bodyReader, "ParentBodyType")) == 0;
                         int parentID = bodyReader.GetInt32(getCol(bodyReader, "ParentBodyID"));
                         if(!parentStar) {
-                            body.parent = bodyIdx[parentID];
+                            body.parent = game.bodyIdx[parentID];
                             body.parent.children.Add(body);
                         }
 
@@ -267,10 +284,10 @@ namespace AuroraDashboard {
                             body.isSurveyed.Add(race, false);
                         }
 
-                        bodyIdx.Add(body.ID, body);
+                        game.bodyIdx.Add(body.ID, body);
                     }
 
-                    sysIdx.Add(sys.ID, sys);
+                    game.sysIdx.Add(sys.ID, sys);
                     game.Systems.Add(sys);
                 }
 
@@ -282,10 +299,12 @@ namespace AuroraDashboard {
                     int bodIdx = reader.GetInt32(getCol(reader, "SystemBodyID"));
 
                     // Found out there might be invalid ID-s in the survey table
-                    if (bodyIdx.ContainsKey(bodIdx)) {
+                    if (game.bodyIdx.ContainsKey(bodIdx)) {
                         int minID = reader.GetInt32(getCol(reader, "MaterialID")) - 1;
-                        bodyIdx[bodIdx].minerals[minID] = reader.GetDouble(getCol(reader, "Amount"));
-                        bodyIdx[bodIdx].mineralsAcc[minID] = reader.GetDouble(getCol(reader, "Accessibility"));
+                        game.bodyIdx[bodIdx].minerals[minID] = reader.GetDouble(getCol(reader, "Amount"));
+                        game.bodyIdx[bodIdx].mineralsAcc[minID] = reader.GetDouble(getCol(reader, "Accessibility"));
+
+                        game.bodyIdx[bodIdx].hasMinerals = game.bodyIdx[bodIdx].minerals.Sum() > 0;
                     }
                 }
 
@@ -296,8 +315,8 @@ namespace AuroraDashboard {
                 while (reader.Read()) {
                     int bodIdx = reader.GetInt32(getCol(reader, "SystemBodyID"));
 
-                    if (bodyIdx.ContainsKey(bodIdx)) {
-                        bodyIdx[bodIdx].isSurveyed[raceIdx[reader.GetInt32(getCol(reader, "RaceID"))]] = true;
+                    if (game.bodyIdx.ContainsKey(bodIdx)) {
+                        game.bodyIdx[bodIdx].isSurveyed[game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))]] = true;
                     }
                 }
 
@@ -308,14 +327,15 @@ namespace AuroraDashboard {
                     AurRSystem rSys = new AurRSystem();
 
                     rSys.ID = reader.GetInt32(getCol(reader, "SystemID"));
-                    rSys.system = sysIdx[rSys.ID];
-                    rSys.race = raceIdx[reader.GetInt32(getCol(reader, "RaceID"))];
+                    rSys.system = game.sysIdx[rSys.ID];
+                    rSys.race = game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))];
                     rSys.Name = reader.GetString(getCol(reader, "Name"));
 
                     rSys.x = reader.GetDouble(getCol(reader, "Xcor"));
                     rSys.y = reader.GetDouble(getCol(reader, "Ycor"));
 
                     rSys.race.knownSystems.Add(rSys);
+                    rSys.race.knownSysIdx.Add(rSys.system, rSys);
                 }
 
                 cmd = new SqliteCommand("SELECT * FROM FCT_SystemBodyName WHERE" + GameCl + ";", con);
@@ -327,8 +347,8 @@ namespace AuroraDashboard {
                     if(raceID == game.Races[0].ID) {
                         int bodIdx = reader.GetInt32(getCol(reader, "SystemBodyID"));
 
-                        if (bodyIdx.ContainsKey(bodIdx)) {
-                            bodyIdx[bodIdx].FirstRaceName = reader.GetString(getCol(reader, "Name"));
+                        if (game.bodyIdx.ContainsKey(bodIdx)) {
+                            game.bodyIdx[bodIdx].FirstRaceName = reader.GetString(getCol(reader, "Name"));
                         }
                     }
                 }
@@ -343,10 +363,10 @@ namespace AuroraDashboard {
 
                     pop.ID = reader.GetInt32(getCol(reader, "PopulationID"));
                     pop.name = reader.GetString(getCol(reader, "PopName"));
-                    pop.race = raceIdx[reader.GetInt32(getCol(reader, "RaceID"))];
+                    pop.race = game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))];
                     pop.race.populations.Add(pop);
-                    pop.body = bodyIdx[reader.GetInt32(getCol(reader, "SystemBodyID"))];
-                    pop.body.populations.Add(pop);
+                    pop.body = game.bodyIdx[reader.GetInt32(getCol(reader, "SystemBodyID"))];
+                    pop.body.populations.Add(pop.race, pop);
 
                     pop.minerals[(int)MineralType.Duranium] = reader.GetDouble(getCol(reader, "Duranium"));
                     pop.minerals[(int)MineralType.Neutronium] = reader.GetDouble(getCol(reader, "Neutronium"));
@@ -375,7 +395,7 @@ namespace AuroraDashboard {
                         pop.race.capital = pop;
                     }
 
-                    popIdx.Add(pop.ID, pop);
+                    game.popIdx.Add(pop.ID, pop);
                 }
 
                 progress.Report(new PrgMsg("Loaded populations.", prgBase + 0.99f * prgMult));

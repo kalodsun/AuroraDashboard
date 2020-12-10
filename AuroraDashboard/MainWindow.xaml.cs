@@ -79,26 +79,67 @@ namespace AuroraDashboard
 
         public SeriesCollection pieStockpilesSeries = new SeriesCollection();
 
+        void InitMineralSelector(ComboBox comboBox) {
+            comboBox.Items.Add("All minerals (amount)");
+            comboBox.Items.Add("All minerals (price)");
+            foreach (string name in Enum.GetNames(typeof(MineralType))) {
+                comboBox.Items.Add(name);
+            }
+            comboBox.SelectedIndex = 0;
+        }
+
+        Func<double[], double> GetMineralSelectorFunc(ComboBox comboBox) {
+            Func<double[], double> amountFunc;
+            if (comboBox.SelectedIndex > 1) {
+                amountFunc = minerals => minerals[comboBox.SelectedIndex - 2];
+            } else if (comboBox.SelectedIndex == 1) {
+                amountFunc = minerals => {
+                    double result = 0;
+                    for (int i = 0; i < minerals.Length; i++) {
+                        result += minerals[i] * mineralPrices[i];
+                    }
+                    return result;
+                };
+            } else {
+                amountFunc = minerals => minerals.Sum();
+            }
+            return amountFunc;
+        }
+
         public MainWindow()
         {
             InitializeComponent();
 
-            cmbStockpilePieMineral.Items.Add("All minerals (amount)");
-            cmbStockpilePieMineral.Items.Add("All minerals (price)");
-            foreach(string name in Enum.GetNames(typeof(MineralType))) {
-                cmbStockpilePieMineral.Items.Add(name);
-            }
-            cmbStockpilePieMineral.SelectedIndex = 0;
+            InitMineralSelector(cmbStockpilePieMineral);
+            InitMineralSelector(cmbProspectMineral);
+
+            cmbProspectTarget.Items.Add("All bodies");
+            cmbProspectTarget.Items.Add("Only colonized");
+            cmbProspectTarget.Items.Add("Only uncolonized");
+            cmbProspectTarget.SelectedIndex = 0;
+
+            cmbProspectFor.Items.Add("Productivity");
+            cmbProspectFor.Items.Add("Productivity * Amount");
+            cmbProspectFor.Items.Add("Amount");
+            cmbProspectFor.SelectedIndex = 1;
 
             pieStockpiles.Series = pieStockpilesSeries;
 
             chrtMineralPrice.Series[0].LabelPoint = (chartPoint) => chartPoint.Y.ToString("F2");
-            chrtMineralStockpile.Series[0].LabelPoint = mineralLabelFunc;
             chrtMineralPrice.AxisX[0].Labels = Enum.GetNames(typeof(MineralType));
-            chrtMineralStockpile.AxisX[0].Labels = Enum.GetNames(typeof(MineralType));
-
             chrtMineralPrice.AxisY[0].MinValue = 0;
             chrtMineralPrice.AxisY[0].MaxValue = 4;
+
+            chrtMineralStockpile.Series[0].LabelPoint = mineralLabelFunc;
+            chrtMineralStockpile.AxisX[0].Labels = Enum.GetNames(typeof(MineralType));
+
+            chrtProspect.Series[0].LabelPoint = (chartPoint) => {
+                if (cmbProspectFor.SelectedIndex == 0) {
+                    return chrtProspect.AxisX[0].Labels[(int)chartPoint.X] + "\n" + chartPoint.Y.ToString("F2");
+                } else {
+                    return chrtProspect.AxisX[0].Labels[(int)chartPoint.X] + "\n" + mineralLabelFunc(chartPoint);
+                }
+            };
         }
 
         private async void btnLoadDB_Click(object sender, RoutedEventArgs e) {
@@ -156,6 +197,8 @@ namespace AuroraDashboard
             CalcMineralPrice();
 
             PopulateMineralTab();
+
+            UpdateProspect();
         }
 
         void PopulateMineralTab() {
@@ -164,24 +207,57 @@ namespace AuroraDashboard
             chrtMineralStockpile.Series[0].Values = new ChartValues<double>(curRace.minerals);
         }
 
+        double prospectAmountCap = 10000000;
+        double prospectMinAmount = 10000;
+
+        void UpdateProspect() {
+            chrtProspect.UpdaterState = UpdaterState.Paused;
+
+            Func<AurBody, bool> filterFunc = (body) => {
+                if(cmbProspectTarget.SelectedIndex != 0) {
+                    return (body.populations.Count > 0) == (cmbProspectTarget.SelectedIndex == 1);
+                }
+
+                return true;
+            };
+
+            Func<double[], double> amountFunc = GetMineralSelectorFunc(cmbProspectMineral);
+            Func<AurBody, double> valueFunc = (body) => {
+                double[] mineralsAdjsuted = new double[Enum.GetValues(typeof(MineralType)).Length];
+                for (int i = 0; i < Enum.GetValues(typeof(MineralType)).Length; i++) {
+                    switch (cmbProspectFor.SelectedIndex) {
+                    case 0:
+                        mineralsAdjsuted[i] = body.minerals[i] >= prospectMinAmount ? body.mineralsAcc[i] : 0;
+                        break;
+                    case 1:
+                        mineralsAdjsuted[i] = Math.Min(body.minerals[i], prospectAmountCap) * body.mineralsAcc[i];
+                        break;
+                    case 2:
+                        mineralsAdjsuted[i] = Math.Min(body.minerals[i], prospectAmountCap);
+                        break;
+                    }
+                }
+
+                return amountFunc(mineralsAdjsuted);
+            };
+
+            ChartValues<double> values = new ChartValues<double>();
+            List<string> labels = new List<string>();
+            chrtProspect.Series[0].Values = values;
+            chrtProspect.AxisX[0].Labels = labels;
+            foreach (AurBody body in (from dictRec in curGame.bodyIdx where (dictRec.Value.hasMinerals && dictRec.Value.isSurveyed[curRace] && filterFunc(dictRec.Value)) orderby valueFunc(dictRec.Value) descending select dictRec.Value).Take(20)) {
+                values.Add(valueFunc(body));
+                labels.Add(body.GetName(curRace));
+            }
+
+            chrtProspect.UpdaterState = UpdaterState.Running;
+            chrtProspect.Update();
+        }
+
         void RecalculateStockpilePie() {
             pieStockpiles.UpdaterState = UpdaterState.Paused;
-            //pieStockpilesSeries.Clear();
 
-            Func<double[], double> amountFunc;
-            if(cmbStockpilePieMineral.SelectedIndex > 1) {
-                amountFunc = minerals => minerals[cmbStockpilePieMineral.SelectedIndex-2];
-            } else if(cmbStockpilePieMineral.SelectedIndex == 1) {
-                amountFunc = minerals => {
-                    double result = 0;
-                    for (int i = 0; i < minerals.Length; i++) {
-                        result += minerals[i] * mineralPrices[i];
-                    }
-                    return result;
-                };
-            } else {
-                amountFunc = minerals => minerals.Sum();
-            }
+            Func<double[], double> amountFunc = GetMineralSelectorFunc(cmbStockpilePieMineral);
 
             int seriesIdx = 0;
             foreach (AurPop pop in (from pop in curRace.populations where amountFunc(pop.minerals) > 0 orderby amountFunc(pop.minerals) descending select pop)) {
@@ -246,6 +322,39 @@ namespace AuroraDashboard
         private void cmbStockpileMineral_SelectionChanged(object sender, SelectionChangedEventArgs e) {
             if (curRace != null) {
                 RecalculateStockpilePie();
+            }
+        }
+
+        private void cmbProspect_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+            if(curRace != null) {
+                UpdateProspect();
+            }
+        }
+
+        private void cmbProspectFor_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+            if (cmbProspectFor.SelectedIndex == 0) {
+                lblProspectLimit.Content = "Min Amount";
+                txtProspectLimit.Text = prospectMinAmount.ToString("F0");
+            } else {
+                lblProspectLimit.Content = "Amount Cap";
+                txtProspectLimit.Text = prospectAmountCap.ToString("F0");
+            }
+
+            cmbProspect_SelectionChanged(sender, e);
+        }
+
+        private void txtProspectLimit_TextChanged(object sender, TextChangedEventArgs e) {
+            double val;
+            if (double.TryParse(txtProspectLimit.Text, out val)) {
+                if (cmbProspectFor.SelectedIndex == 0) {
+                    prospectMinAmount = val;
+                } else {
+                    prospectAmountCap = val;
+                }
+            }
+
+            if (curRace != null) {
+                UpdateProspect();
             }
         }
     }
