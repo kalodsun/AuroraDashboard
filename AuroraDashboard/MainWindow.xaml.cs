@@ -15,8 +15,7 @@ using System.Windows.Shapes;
 using LiveCharts;
 using LiveCharts.Wpf;
 
-namespace AuroraDashboard
-{
+namespace AuroraDashboard {
     public class MineralPriceMod {
         public double[] priceMult = new double[Enum.GetValues(typeof(MineralType)).Length];
 
@@ -40,6 +39,16 @@ namespace AuroraDashboard
         }
     }
 
+    class ProspectListItem {
+        public string Name { get; set; }
+        public string Value { get; set; }
+        public string[] MineralValues { private set; get; }
+
+        public ProspectListItem() {
+            MineralValues = new string[Enum.GetValues(typeof(MineralType)).Length];
+        }
+    }
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -53,7 +62,7 @@ namespace AuroraDashboard
 
         public double[] mineralPrices = new double[Enum.GetValues(typeof(MineralType)).Length];
 
-        public Func<ChartPoint, string> mineralLabelFunc = (chartPoint) => (chartPoint.Y / 1000).ToString("N0") + "K";
+        public Func<double, string> mineralLabelFunc = (value) => (value / 1000).ToString("N0") + "K";
 
         private void CalcMineralPrice() {
             MineralPriceMod priceMod = MineralPriceMod.noMod;
@@ -78,6 +87,7 @@ namespace AuroraDashboard
         }
 
         public SeriesCollection pieStockpilesSeries = new SeriesCollection();
+        public GridView prospectGrid;
 
         void InitMineralSelector(ComboBox comboBox) {
             comboBox.Items.Add("All minerals (amount)");
@@ -130,16 +140,24 @@ namespace AuroraDashboard
             chrtMineralPrice.AxisY[0].MinValue = 0;
             chrtMineralPrice.AxisY[0].MaxValue = 4;
 
-            chrtMineralStockpile.Series[0].LabelPoint = mineralLabelFunc;
+            chrtMineralStockpile.Series[0].LabelPoint = (chartPoint) => mineralLabelFunc(chartPoint.Y);
             chrtMineralStockpile.AxisX[0].Labels = Enum.GetNames(typeof(MineralType));
 
             chrtProspect.Series[0].LabelPoint = (chartPoint) => {
                 if (cmbProspectFor.SelectedIndex == 0) {
-                    return chrtProspect.AxisX[0].Labels[(int)chartPoint.X] + "\n" + chartPoint.Y.ToString("F2");
+                    return chrtProspect.AxisY[0].Labels[(int)chartPoint.Y] + "\n" + chartPoint.X.ToString("F2");
                 } else {
-                    return chrtProspect.AxisX[0].Labels[(int)chartPoint.X] + "\n" + mineralLabelFunc(chartPoint);
+                    return chrtProspect.AxisY[0].Labels[(int)chartPoint.Y] + "\n" + mineralLabelFunc(chartPoint.X);
                 }
             };
+
+            prospectGrid = (GridView)lstProspect.View;
+            prospectGrid.Columns.Add(new GridViewColumn() { Header = "Name", Width = 150, DisplayMemberBinding = new Binding("Name") }); 
+            prospectGrid.Columns.Add(new GridViewColumn() { Header = "Value", Width = 70, DisplayMemberBinding = new Binding("Value") });
+
+            for (int i = 0; i < Enum.GetValues(typeof(MineralType)).Length; i++) {
+                prospectGrid.Columns.Add(new GridViewColumn() { Header = Enum.GetName(typeof(MineralType), i), Width = 103, DisplayMemberBinding = new Binding("MineralValues[" + i  + "]") });
+            }
         }
 
         private async void btnLoadDB_Click(object sender, RoutedEventArgs e) {
@@ -189,6 +207,10 @@ namespace AuroraDashboard
             if (cmbStockpilePieMineral.SelectedIndex == 1) {
                 RecalculateStockpilePie();
             }
+
+            if (cmbProspectMineral.SelectedIndex == 1) {
+                UpdateProspect();
+            }
         }
 
         void OnRaceSelected() {
@@ -209,6 +231,8 @@ namespace AuroraDashboard
 
         double prospectAmountCap = 10000000;
         double prospectMinAmount = 10000;
+        int prospectResCnt = 50;
+        int prospectChrtCnt = 15;
 
         void UpdateProspect() {
             chrtProspect.UpdaterState = UpdaterState.Paused;
@@ -244,10 +268,29 @@ namespace AuroraDashboard
             ChartValues<double> values = new ChartValues<double>();
             List<string> labels = new List<string>();
             chrtProspect.Series[0].Values = values;
-            chrtProspect.AxisX[0].Labels = labels;
-            foreach (AurBody body in (from dictRec in curGame.bodyIdx where (dictRec.Value.hasMinerals && dictRec.Value.isSurveyed[curRace] && filterFunc(dictRec.Value)) orderby valueFunc(dictRec.Value) descending select dictRec.Value).Take(20)) {
-                values.Add(valueFunc(body));
-                labels.Add(body.GetName(curRace));
+            chrtProspect.AxisY[0].Labels = labels;
+            lstProspect.Items.Clear();
+
+            int cnt = 0;
+            foreach (AurBody body in (from dictRec in curGame.bodyIdx where (dictRec.Value.hasMinerals && dictRec.Value.isSurveyed[curRace] && filterFunc(dictRec.Value)) orderby valueFunc(dictRec.Value) descending select dictRec.Value).Take(prospectResCnt)) {
+                double value = valueFunc(body);
+                string name = body.GetName(curRace);
+
+                if (cnt < prospectChrtCnt) {
+                    values.Add(value);
+                    labels.Add(name);
+                }
+
+                ProspectListItem listItem = new ProspectListItem();
+                listItem.Name = name;
+                listItem.Value = value > 1000 ? (value / 1000).ToString("N0") + "K" : value.ToString("F2");
+
+                for (int i = 0; i < Enum.GetValues(typeof(MineralType)).Length; i++) {
+                    listItem.MineralValues[i] = body.minerals[i].ToString("N0") + " (" + body.mineralsAcc[i].ToString("N1") + ")";
+                }
+
+                lstProspect.Items.Add(new ListViewItem() { Content = listItem });
+                cnt++;
             }
 
             chrtProspect.UpdaterState = UpdaterState.Running;
@@ -274,7 +317,7 @@ namespace AuroraDashboard
 
                 pieSeries.Values = val;
                 pieSeries.Title = "";
-                pieSeries.LabelPoint = (chartPoint) => { return pop.name + "\n" + mineralLabelFunc(chartPoint); };
+                pieSeries.LabelPoint = (chartPoint) => { return pop.name + "\n" + mineralLabelFunc(chartPoint.Y); };
                 pieSeries.DataLabels = amountFunc(pop.minerals) / amountFunc(curRace.minerals) > 0.07;
                 seriesIdx++;
             }

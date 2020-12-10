@@ -28,7 +28,7 @@
             <TabItem Header="Empire Minerals">
                 <Grid Background="#FFE5E5E5">
                     <DataGrid HorizontalAlignment="Left" Height="245" Margin="10,10,0,0" VerticalAlignment="Top" Width="330"/>
-                    <lvc:CartesianChart x:Name="chrtMineralPrice" Margin="398,472,748,10" DisableAnimations="True" TooltipTimeout="0">
+                    <lvc:CartesianChart x:Name="chrtMineralPrice" Margin="399,527,976,10" DisableAnimations="True" TooltipTimeout="0">
                         <lvc:CartesianChart.Series>
                             <lvc:ColumnSeries Title="Price" DataLabels="True"/>
                         </lvc:CartesianChart.Series>
@@ -43,7 +43,7 @@
                             <lvc:Axis/>
                         </lvc:CartesianChart.AxisY>
                     </lvc:CartesianChart>
-                    <lvc:CartesianChart x:Name="chrtMineralStockpile" Margin="1131,472,15,10" DisableAnimations="True" TooltipTimeout="0">
+                    <lvc:CartesianChart x:Name="chrtMineralStockpile" Margin="908,527,465,10" DisableAnimations="True" TooltipTimeout="0">
                         <lvc:CartesianChart.Series>
                             <lvc:ColumnSeries Title="Empire Stockpile" DataLabels="True"/>
                         </lvc:CartesianChart.Series>
@@ -55,9 +55,9 @@
                             </lvc:Axis>
                         </lvc:CartesianChart.AxisX>
                     </lvc:CartesianChart>
-                    <lvc:PieChart x:Name="pieStockpiles" Margin="10,605,1539,10" Series="{Binding pieStockpilesSeries}" DisableAnimations="True" TooltipTimeout="0"/>
-                    <Label Content="Mineral Stockpiles:" HorizontalAlignment="Left" Margin="10,574,0,0" VerticalAlignment="Top"/>
-                    <ComboBox x:Name="cmbStockpilePieMineral" HorizontalAlignment="Left" Margin="124,578,0,0" VerticalAlignment="Top" Width="216" SelectionChanged="cmbStockpileMineral_SelectionChanged"/>
+                    <lvc:PieChart x:Name="pieStockpiles" Margin="10,554,1489,10" Series="{Binding pieStockpilesSeries}" DisableAnimations="True" TooltipTimeout="0"/>
+                    <Label Content="Mineral Stockpiles:" HorizontalAlignment="Left" Margin="10,523,0,0" VerticalAlignment="Top"/>
+                    <ComboBox x:Name="cmbStockpilePieMineral" HorizontalAlignment="Left" Margin="124,527,0,0" VerticalAlignment="Top" Width="216" SelectionChanged="cmbStockpileMineral_SelectionChanged"/>
                 </Grid>
             </TabItem>
             <TabItem Header="Prospecting">
@@ -70,17 +70,23 @@
                     <Label Content="Prospect For" HorizontalAlignment="Left" Margin="678,10,0,0" VerticalAlignment="Top"/>
                     <Label x:Name="lblProspectLimit" Content="Amount Limit" HorizontalAlignment="Left" Margin="973,10,0,0" VerticalAlignment="Top"/>
                     <TextBox x:Name="txtProspectLimit" HorizontalAlignment="Left" Height="23" Margin="1061,12,0,0" TextWrapping="NoWrap" Text="10000000" VerticalAlignment="Top" Width="86" TextAlignment="Right" TextChanged="txtProspectLimit_TextChanged"/>
-                    <lvc:CartesianChart x:Name="chrtProspect" Margin="10,41,10,10" DisableAnimations="True" TooltipTimeout="0">
+                    <ListView Margin="10,41,494,10" Name="lstProspect">
+                        <ListView.View>
+                            <GridView>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                    <lvc:CartesianChart x:Name="chrtProspect" Margin="1390,41,10,10" DisableAnimations="True" TooltipTimeout="0">
                         <lvc:CartesianChart.Series>
-                            <lvc:ColumnSeries Title="Prospect Value" DataLabels="True"/>
+                            <lvc:RowSeries Title="Prospect Value" DataLabels="True"/>
                         </lvc:CartesianChart.Series>
-                        <lvc:CartesianChart.AxisX>
-                            <lvc:Axis LabelsRotation="20" Position="LeftBottom" Title="Prospect Targets">
+                        <lvc:CartesianChart.AxisY>
+                            <lvc:Axis LabelsRotation="72.5" Position="RightTop" Title="Prospect Targets">
                                 <lvc:Axis.Separator>
                                     <lvc:Separator IsEnabled="False" Visibility="Hidden"/>
                                 </lvc:Axis.Separator>
                             </lvc:Axis>
-                        </lvc:CartesianChart.AxisX>
+                        </lvc:CartesianChart.AxisY>
                     </lvc:CartesianChart>
                 </Grid>
             </TabItem>
