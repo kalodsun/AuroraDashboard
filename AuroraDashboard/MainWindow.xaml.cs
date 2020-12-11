@@ -167,7 +167,7 @@ namespace AuroraDashboard {
             txtOutput.Visibility = Visibility.Visible;
 
             await Task.Run(() => {
-                aurData = dbReader.ReadDB(@"Data Source=D:\Projects\AuroraDashboard\AuroraDB190.db;", progress);
+                aurData = dbReader.ReadDB(@"Data Source=D:\Projects\AuroraDashboard\AuroraDB.db;", progress);
             });
 
             txtOutput.Visibility = Visibility.Hidden;
@@ -289,7 +289,7 @@ namespace AuroraDashboard {
                     listItem.MineralValues[i] = body.minerals[i].ToString("N0") + " (" + body.mineralsAcc[i].ToString("N1") + ")";
                 }
 
-                lstProspect.Items.Add(new ListViewItem() { Content = listItem });
+                lstProspect.Items.Add(new ListViewItem() { Content = listItem, HorizontalContentAlignment = HorizontalAlignment.Right });
                 cnt++;
             }
 

@@ -10,6 +10,35 @@ namespace AuroraDashboard {
     public enum InstallationType { CFactory, FFactory, OFactory, Mine, AutoMine, DSTS, Refinery, FinCenter, Maint, Research, Terraformer, MDriver, Infr, InfrLG}
     public enum MineralType { Duranium, Neutronium, Corbomite, Tritanium, Boronide, Mercassium, Vendarite, Sorium, Uridium, Corundium, Gallicite }
 
+    public class AurClass {
+        public int ID;
+        public string name;
+    }
+
+    public class AurShip {
+        public int ID;
+        public string name;
+        public double tonnage;
+        public int crew;
+        public double fuel;
+        public double grade;
+        public double supplies;
+        public double overhaulTime;
+
+        public AurRace race;
+        public AurFleet fleet;
+        public AurClass shipClass;
+    }
+
+    public class AurFleet {
+        public int ID;
+        public string name;
+
+        public AurRace race;
+        public List<AurShip> ships = new List<AurShip>();
+        public AurBody orbitBody;
+    }
+
     public class AurPop {
         public int ID;
         public string name;
@@ -88,12 +117,17 @@ namespace AuroraDashboard {
         public List<AurRSystem> knownSystems = new List<AurRSystem>();
         public List<AurPop> populations = new List<AurPop>();
 
+        public List<AurClass> classes = new List<AurClass>();
+        public List<AurShip> ships = new List<AurShip>();
+        public List<AurFleet> fleets = new List<AurFleet>();
+
         public Dictionary<AurSystem, AurRSystem> knownSysIdx = new Dictionary<AurSystem, AurRSystem>();
     }
 
     public class AurGame {
         public int ID;
         public string name;
+        public double curTime;
 
         public List<AurRace> Races = new List<AurRace>();
         public List<AurSystem> Systems = new List<AurSystem>();
@@ -102,6 +136,9 @@ namespace AuroraDashboard {
         public Dictionary<int, AurSystem> sysIdx = new Dictionary<int, AurSystem>();
         public Dictionary<int, AurBody> bodyIdx = new Dictionary<int, AurBody>();
         public Dictionary<int, AurPop> popIdx = new Dictionary<int, AurPop>();
+        public Dictionary<int, AurClass> classIdx = new Dictionary<int, AurClass>();
+        public Dictionary<int, AurShip> shipIdx = new Dictionary<int, AurShip>();
+        public Dictionary<int, AurFleet> fleetIdx = new Dictionary<int, AurFleet>();
     }
 
     public class AuroraData {
@@ -114,9 +151,19 @@ namespace AuroraDashboard {
         public int[] instToID = new int[Enum.GetValues(typeof(InstallationType)).Length];
         public int[] IDToInst = new int[200];
 
+        public Dictionary<SqliteDataReader, Dictionary<string, int>> colCache = new Dictionary<SqliteDataReader, Dictionary<string, int>>();
         int getCol(SqliteDataReader reader, string name) {
+            if (colCache.ContainsKey(reader)) {
+                if (colCache[reader].ContainsKey(name)) {
+                    return colCache[reader][name];
+                }
+            } else {
+                colCache.Add(reader, new Dictionary<string, int>());
+            }
+
             for (int i = 0; i < reader.FieldCount; i++) {
                 if (reader.GetName(i) == name) {
+                    colCache[reader].Add(name, i);
                     return i;
                 }
             }
@@ -232,6 +279,7 @@ namespace AuroraDashboard {
 
                 game.ID = gameReader.GetInt32(getCol(gameReader, "GameID"));
                 game.name = gameReader.GetString(getCol(gameReader, "GameName"));
+                game.curTime = gameReader.GetDouble(getCol(gameReader, "GameTime"));
 
                 progress.Report(new PrgMsg("Loading game " + game.name + "...", prgBase + 0.0f * prgMult));
 
@@ -398,9 +446,59 @@ namespace AuroraDashboard {
                     game.popIdx.Add(pop.ID, pop);
                 }
 
-                progress.Report(new PrgMsg("Loaded populations.", prgBase + 0.99f * prgMult));
+                progress.Report(new PrgMsg("Loaded populations.", prgBase + 0.8f * prgMult));
+
+                cmd = new SqliteCommand("SELECT * FROM FCT_ShipClass WHERE" + GameCl + ";", con);
+                reader = cmd.ExecuteReader();
+
+                while (reader.Read()) {
+                    AurClass cls = new AurClass();
+
+                    cls.ID = reader.GetInt32(getCol(reader, "ShipClassID"));
+                    cls.name = reader.GetString(getCol(reader, "ClassName"));
+
+                    game.classIdx.Add(cls.ID, cls);
+                    game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))].classes.Add(cls);
+                }
+
+                progress.Report(new PrgMsg("Loaded classes.", prgBase + 0.85f * prgMult));
+
+                cmd = new SqliteCommand("SELECT * FROM FCT_Fleet WHERE" + GameCl + ";", con);
+                reader = cmd.ExecuteReader();
+
+                while (reader.Read()) {
+                    AurFleet fleet = new AurFleet();
+
+                    fleet.ID = reader.GetInt32(getCol(reader, "FleetID"));
+                    fleet.name = reader.GetString(getCol(reader, "FleetName"));
+                    fleet.race = game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))];
+
+                    fleet.race.fleets.Add(fleet);
+                    game.fleetIdx.Add(fleet.ID, fleet);
+                }
+
+                progress.Report(new PrgMsg("Loaded fleets.", prgBase + 0.90f * prgMult));
+
+                cmd = new SqliteCommand("SELECT * FROM FCT_Ship WHERE" + GameCl + ";", con);
+                reader = cmd.ExecuteReader();
+
+                while (reader.Read()) {
+                    AurShip ship = new AurShip();
+
+                    ship.ID = reader.GetInt32(getCol(reader, "ShipID"));
+                    ship.name = reader.GetString(getCol(reader, "ShipName"));
+                    ship.race = game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))];
+                    ship.shipClass = game.classIdx[reader.GetInt32(getCol(reader, "ShipClassID"))];
+                    ship.fleet = game.fleetIdx[reader.GetInt32(getCol(reader, "FleetID"))];
+                    ship.fuel = reader.GetDouble(getCol(reader, "Fuel"));
+
+                    ship.race.ships.Add(ship);
+                    game.shipIdx.Add(ship.ID, ship);
+                }
 
                 ret.Games.Add(game);
+
+                progress.Report(new PrgMsg("Loaded ships.", prgBase + 0.99f * prgMult));
             }
 
             con.Close();
