@@ -251,6 +251,10 @@ namespace AuroraDashboard {
             if (cmbProspectMineral.SelectedIndex == 1) {
                 UpdateProspect();
             }
+
+            if (chkAnalyzePerPrice.IsChecked == true) {
+                UpdateWeaponAnalysis();
+            }
         }
 
         void OnRaceSelected() {
@@ -275,23 +279,26 @@ namespace AuroraDashboard {
             lstWeapons.Items.Clear();
 
             cmbWeapFC.Items.Clear();
-            foreach (AurCompBFC bfc in curRace.knownCompIdx[ComponentType.BFC]) {
-                cmbWeapFC.Items.Add(bfc.name);
+            foreach (var bfc in curRace.knownCompIdx[ComponentType.BFC]) {
+                cmbWeapFC.Items.Add(bfc.component.name);
             }
 
             if (optAnalyzeWeapon.IsChecked == true) {
-                foreach (AurCompWeapon weapon in curRace.knownCompIdx[ComponentType.Weapon]) {
-                    WeaponListItem item = new WeaponListItem();
-                    item.Name = weapon.name;
-                    item.Size = weapon.size.ToString("N0");
-                    item.weapon = weapon;
-                    item.Cost = weapon.cost.ToString("N0");
-                    item.Price = GetCombinedMineralPrice(weapon.mineralCost).ToString("N0");
-                    item.PropertyChanged += (object sender, PropertyChangedEventArgs e) => {
-                        UpdateWeaponAnalysis();
-                    };
+                foreach (var weaponComp in curRace.knownCompIdx[ComponentType.Weapon]) {
+                    if (chkAnalyzeObsolete.IsChecked == true || !weaponComp.isObsolete) {
+                        WeaponListItem item = new WeaponListItem();
+                        AurCompWeapon weapon = (AurCompWeapon)weaponComp.component;
+                        item.Name = weapon.name;
+                        item.Size = weapon.size.ToString("N0");
+                        item.weapon = weapon;
+                        item.Cost = weapon.cost.ToString("N0");
+                        item.Price = GetCombinedMineralPrice(weapon.mineralCost).ToString("N0");
+                        item.PropertyChanged += (object sender, PropertyChangedEventArgs e) => {
+                            UpdateWeaponAnalysis();
+                        };
 
-                    lstWeapons.Items.Add(item);
+                        lstWeapons.Items.Add(item);
+                    }
                 }
             } else {
                 foreach (AurClass cls in curRace.classes) {
@@ -758,8 +765,8 @@ namespace AuroraDashboard {
         }
 
         private void cmbWeapFC_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-            if(curRace != null && cmbWeapFC.SelectedIndex > 0) {
-                AurCompBFC bfc = (AurCompBFC)curRace.knownCompIdx[ComponentType.BFC][cmbWeapFC.SelectedIndex];
+            if(curRace != null && cmbWeapFC.SelectedIndex >= 0) {
+                AurCompBFC bfc = (AurCompBFC)curRace.knownCompIdx[ComponentType.BFC][cmbWeapFC.SelectedIndex].component;
 
                 txtWeapFCRange.Text = bfc.rangeMax.ToString();
                 txtWeapFCTrack.Text = bfc.trackingSpeed.ToString();

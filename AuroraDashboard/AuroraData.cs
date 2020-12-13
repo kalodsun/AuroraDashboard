@@ -220,6 +220,16 @@ namespace AuroraDashboard {
     }
 
     public class AurRace {
+        public class Comp {
+            public AurComponent component;
+            public bool isObsolete;
+
+            public Comp(AurComponent comp, bool obs) {
+                component = comp;
+                isObsolete = obs;
+            }
+        }
+
         public int ID;
         public string name;
 
@@ -234,11 +244,11 @@ namespace AuroraDashboard {
         public List<AurFleet> fleets = new List<AurFleet>();
 
         public Dictionary<AurSystem, AurRSystem> knownSysIdx = new Dictionary<AurSystem, AurRSystem>();
-        public Dictionary<ComponentType, List<AurComponent>> knownCompIdx = new Dictionary<ComponentType, List<AurComponent>>();
+        public Dictionary<ComponentType, List<Comp>> knownCompIdx = new Dictionary<ComponentType, List<Comp>>();
 
         public AurRace() {
             foreach (ComponentType type in Enum.GetValues(typeof(ComponentType))) {
-                knownCompIdx.Add(type, new List<AurComponent>());
+                knownCompIdx.Add(type, new List<Comp>());
             }
         }
     }
@@ -667,7 +677,7 @@ namespace AuroraDashboard {
 
                     if (game.componentIdx.ContainsKey(techID)) {
                         AurComponent comp = game.componentIdx[techID];
-                        game.raceIdx[raceID].knownCompIdx[comp.componentType].Add(comp);
+                        game.raceIdx[raceID].knownCompIdx[comp.componentType].Add(new AurRace.Comp(comp, obsolete));
                     }
                 }
 
