@@ -55,6 +55,8 @@ namespace AuroraDashboard {
         public bool IsSelected { get { return _isSelected; } set { _isSelected = value; OnPropertyChanged("IsSelected"); } }
         public string Name { get; set; }
         public string Size { set; get; }
+        public string Cost { set; get; }
+        public string Price { set; get; }
 
         public AurCompWeapon weapon;
         public AurClass cls;
@@ -81,6 +83,14 @@ namespace AuroraDashboard {
         AurRace curRace;
 
         public double[] mineralPrices = new double[Enum.GetValues(typeof(MineralType)).Length];
+
+        public double GetCombinedMineralPrice(double[] minerals) {
+            double ret = 0;
+            for(int i =0;i < minerals.Length; i++) {
+                ret += minerals[i] * mineralPrices[i];
+            }
+            return ret;
+        }
 
         public Func<double, string> mineralLabelFunc = (value) => (value / 1000).ToString("N0") + "K";
 
@@ -138,11 +148,7 @@ namespace AuroraDashboard {
                 amountFunc = minerals => minerals[comboBox.SelectedIndex - 2];
             } else if (comboBox.SelectedIndex == 1) {
                 amountFunc = minerals => {
-                    double result = 0;
-                    for (int i = 0; i < minerals.Length; i++) {
-                        result += minerals[i] * mineralPrices[i];
-                    }
-                    return result;
+                    return GetCombinedMineralPrice(minerals);
                 };
             } else {
                 amountFunc = minerals => minerals.Sum();
@@ -279,6 +285,8 @@ namespace AuroraDashboard {
                     item.Name = weapon.name;
                     item.Size = weapon.size.ToString("N0");
                     item.weapon = weapon;
+                    item.Cost = weapon.cost.ToString("N0");
+                    item.Price = GetCombinedMineralPrice(weapon.mineralCost).ToString("N0");
                     item.PropertyChanged += (object sender, PropertyChangedEventArgs e) => {
                         UpdateWeaponAnalysis();
                     };
@@ -292,6 +300,8 @@ namespace AuroraDashboard {
                         item.Name = cls.name;
                         item.Size = (cls.tonnage / 50).ToString("N0");
                         item.cls = cls;
+                        item.Cost = cls.cost.ToString("N0");
+                        item.Price = GetCombinedMineralPrice(cls.mineralCost).ToString("N0");
                         item.PropertyChanged += (object sender, PropertyChangedEventArgs e) => {
                             UpdateWeaponAnalysis();
                         };
@@ -399,7 +409,7 @@ namespace AuroraDashboard {
                     for (int i = 0; i < sampleCnt; i++) {
                         double dist = maxRange * i / sampleCnt;
 
-                        double dmg = GetWeaponAnalysisValue(weapon, dist, weaponFCRange, shotInterval, trackingSpeed, weaponTargetSpeed);
+                        double dmg = GetWeaponAnalysisValue(weapon, dist, weaponFCRange, shotInterval, trackingSpeed, weaponTargetSpeed, weapon.size, weapon.cost, weapon.mineralCost);
 
                         if (dmg > 0) {
                             analyzedWeapons[weapon].Values.Add(dmg);
@@ -422,16 +432,16 @@ namespace AuroraDashboard {
                             AurCompWeapon weapon = (AurCompWeapon)weaponType.component;
 
                             int shotInterval = weapon.powerRequired > 0 ? ((int)Math.Ceiling(weapon.powerRequired / weapon.recharge)) : 1;
+                            double weaponTrackingSpeed = weapon.trackingSpeed > 0 ? weapon.trackingSpeed : cls.maxSpeed;
 
                             double dmgPotential = 0;
                             foreach (AurClass.Comp bfc in cls.components[ComponentType.BFC]) {
                                 double fcRange = ((AurCompBFC)bfc.component).rangeMax;
                                 double fcTrackingSpeed = ((AurCompBFC)bfc.component).trackingSpeed;
 
-                                double trackingSpeed = weapon.trackingSpeed > 0 ? weapon.trackingSpeed : cls.maxSpeed;
-                                trackingSpeed = Math.Min(trackingSpeed, fcTrackingSpeed);
+                                double trackingSpeed = Math.Min(weaponTrackingSpeed, fcTrackingSpeed);
 
-                                double dmg = GetWeaponAnalysisValue(weapon, dist, fcRange, shotInterval, trackingSpeed, weaponTargetSpeed);
+                                double dmg = GetWeaponAnalysisValue(weapon, dist, fcRange, shotInterval, trackingSpeed, weaponTargetSpeed, cls.tonnage / 50, cls.cost, cls.mineralCost);
 
                                 dmgPotential = Math.Max(dmg * weaponType.number, dmgPotential);
                             }
@@ -454,7 +464,7 @@ namespace AuroraDashboard {
             chrtWeapons.Update();
         }
 
-        double GetWeaponAnalysisValue(AurCompWeapon weapon, double dist, double fcRange, int shotInterval, double fcTrackingSpeed, double targetSpeed) {
+        double GetWeaponAnalysisValue(AurCompWeapon weapon, double dist, double fcRange, int shotInterval, double fcTrackingSpeed, double targetSpeed, double hs, double cost, double[] mineralCost) {
             double dmg = getDmgAtDist(weapon.damage, weapon.rangeMod, weapon.rangeMax, dist) * weapon.shots;
 
             if (optAnalyzeShots.IsChecked == true) {
@@ -472,7 +482,13 @@ namespace AuroraDashboard {
             }
 
             if (chkAnalyzePerHS.IsChecked == true) {
-                dmg /= weapon.size;
+                dmg /= hs;
+            } else if (chkAnalyzePerCost.IsChecked == true) {
+                dmg /= cost;
+            } else if (chkAnalyzePerPrice.IsChecked == true) {
+                double price = GetCombinedMineralPrice(mineralCost);
+
+                dmg /= price;
             }
 
             if (chkAnalyzeWithFC.IsChecked == true) {
@@ -699,6 +715,18 @@ namespace AuroraDashboard {
 
             if (curRace != null && chkAnalyzeWithFC.IsChecked == true) {
                 UpdateWeaponAnalysis();
+            }
+        }
+
+        private void chkPerCost_Checked(object sender, RoutedEventArgs e) {
+            if(sender != chkAnalyzePerHS) {
+                chkAnalyzePerHS.IsChecked = false;   
+            }
+            if(sender != chkAnalyzePerCost) {
+                chkAnalyzePerCost.IsChecked = false;   
+            }
+            if(sender != chkAnalyzePerPrice) {
+                chkAnalyzePerPrice.IsChecked = false;   
             }
         }
 
