@@ -10,15 +10,123 @@ namespace AuroraDashboard {
     public enum InstallationType { CFactory, FFactory, OFactory, Mine, AutoMine, DSTS, Refinery, FinCenter, Maint, Research, Terraformer, MDriver, Infr, InfrLG}
     public enum MineralType { Duranium, Neutronium, Corbomite, Tritanium, Boronide, Mercassium, Vendarite, Sorium, Uridium, Corundium, Gallicite }
 
-    public class AurClass {
+    public class AurHull {
+        public int ID;
+        public string abbrev;
+        public string name;
+    }
+
+    public enum ComponentType { Engine, Armor, Weapon, ECM, ECCM, AcitveSensor, PassiveSensor, JumpDrive, BFC, Other}
+
+    public class AurComponent {
         public int ID;
         public string name;
+        public ComponentType componentType;
+        public double cost;
+        public double[] mineralCost = new double[Enum.GetValues(typeof(MineralType)).Length];
+        public int crew;
+        public int HTK;
+        public double size;
+
+        public static ComponentType GetComponentType(string typeName) {
+            switch (typeName) {
+            case "Railgun":
+            case "Gauss Cannon":
+            case "Carronade":
+            case "Meson Cannon":
+            case "High Power Microwave":
+            case "Laser":
+            case "Particle Beam":
+                return ComponentType.Weapon;
+            case "Beam Fire Control":
+                return ComponentType.BFC;
+            default:
+                return ComponentType.Other;
+            }
+        }
+
+        public static AurComponent CreateComponentOfType(ComponentType type) {
+            switch (type) {
+            case ComponentType.Weapon:
+                return new AurCompWeapon();
+            case ComponentType.BFC:
+                return new AurCompBFC();
+            }
+
+            return new AurComponent();
+        }
+
+        public AurComponent() {
+            componentType = ComponentType.Other;
+        }
+    }
+
+    public class AurCompWeapon : AurComponent {
+        public double damage;
+        public double rangeMod;
+        public double rangeMax;
+        public double toHitMod;
+        public double trackingSpeed;
+        public double recharge;
+        public double powerRequired;
+        public int shots;
+
+        public bool isSpinal;
+        public bool ignoreShields;
+        public bool ignoreArmor;
+
+        public AurCompWeapon() {
+            componentType = ComponentType.Weapon;
+        }
+    }
+
+    public class AurCompBFC : AurComponent {
+        public double trackingSpeed;
+        public double rangeMax;
+
+        public AurCompBFC() {
+            componentType = ComponentType.BFC;
+        }
+    }
+
+    public class AurClass {
+        public class Comp {
+            public AurComponent component;
+            public int number;
+
+            public Comp(AurComponent comp, int num) {
+                component = comp;
+                number = num;
+            }
+        }
+
+        public int ID;
+        public string name;
+        public double tonnage;
+        public double cost;
+        public double[] mineralCost = new double[Enum.GetValues(typeof(MineralType)).Length];
+        public double fuel;
+        public double supplies;
+        public double fuelEff;
+        public double maxSpeed;
+        public double ppv;
+        public int armor;
+        public int crew;
+        public bool isMilitary;
+        public bool isObsolete;
+        public AurHull hull;
+        public Dictionary<ComponentType, List<Comp>> components = new Dictionary<ComponentType, List<Comp>>();
+
+        public AurClass() {
+            foreach (ComponentType type in Enum.GetValues(typeof(ComponentType))) {
+                components.Add(type, new List<Comp>());
+            }
+        }
     }
 
     public class AurShip {
         public int ID;
         public string name;
-        public double tonnage;
         public int crew;
         public double fuel;
         public double grade;
@@ -36,7 +144,11 @@ namespace AuroraDashboard {
 
         public AurRace race;
         public List<AurShip> ships = new List<AurShip>();
+        public AurSystem system;
         public AurBody orbitBody;
+
+        public double x, y;
+        public double speed;
     }
 
     public class AurPop {
@@ -122,6 +234,13 @@ namespace AuroraDashboard {
         public List<AurFleet> fleets = new List<AurFleet>();
 
         public Dictionary<AurSystem, AurRSystem> knownSysIdx = new Dictionary<AurSystem, AurRSystem>();
+        public Dictionary<ComponentType, List<AurComponent>> knownCompIdx = new Dictionary<ComponentType, List<AurComponent>>();
+
+        public AurRace() {
+            foreach (ComponentType type in Enum.GetValues(typeof(ComponentType))) {
+                knownCompIdx.Add(type, new List<AurComponent>());
+            }
+        }
     }
 
     public class AurGame {
@@ -131,6 +250,7 @@ namespace AuroraDashboard {
 
         public List<AurRace> Races = new List<AurRace>();
         public List<AurSystem> Systems = new List<AurSystem>();
+        public Dictionary<ComponentType, List<AurComponent>> Components = new Dictionary<ComponentType, List<AurComponent>>();
 
         public Dictionary<int, AurRace> raceIdx = new Dictionary<int, AurRace>();
         public Dictionary<int, AurSystem> sysIdx = new Dictionary<int, AurSystem>();
@@ -139,10 +259,20 @@ namespace AuroraDashboard {
         public Dictionary<int, AurClass> classIdx = new Dictionary<int, AurClass>();
         public Dictionary<int, AurShip> shipIdx = new Dictionary<int, AurShip>();
         public Dictionary<int, AurFleet> fleetIdx = new Dictionary<int, AurFleet>();
+        public Dictionary<int, AurComponent> componentIdx = new Dictionary<int, AurComponent>();
+
+        public AurGame() {
+            foreach(ComponentType type in Enum.GetValues(typeof(ComponentType))) {
+                Components.Add(type, new List<AurComponent>());
+            }
+        }
     }
 
     public class AuroraData {
         public List<AurGame> Games = new List<AurGame>();
+
+        public List<AurHull> Hulls = new List<AurHull>();
+        public Dictionary<int, AurHull> hullIdx = new Dictionary<int, AurHull>();
     }
 
     public class AuroraDBReader {
@@ -150,6 +280,8 @@ namespace AuroraDashboard {
 
         public int[] instToID = new int[Enum.GetValues(typeof(InstallationType)).Length];
         public int[] IDToInst = new int[200];
+
+        public Dictionary<int, string> componentTypesToString = new Dictionary<int, string>();
 
         public Dictionary<SqliteDataReader, Dictionary<string, int>> colCache = new Dictionary<SqliteDataReader, Dictionary<string, int>>();
         int getCol(SqliteDataReader reader, string name) {
@@ -237,6 +369,27 @@ namespace AuroraDashboard {
                     break;
                 }
             }
+
+            cmd = new SqliteCommand("SELECT * FROM DIM_ComponentType;", con);
+            SqliteDataReader compReader = cmd.ExecuteReader();
+
+            while (compReader.Read()) {
+                componentTypesToString.Add(compReader.GetInt32(getCol(compReader, "ComponentTypeID")), compReader.GetString(getCol(compReader, "TypeDescription")));
+            }
+        }
+
+        void LoadMineralByNamedCols(double[] minerals, SqliteDataReader reader) {
+            minerals[(int)MineralType.Duranium] = reader.GetDouble(getCol(reader, "Duranium"));
+            minerals[(int)MineralType.Neutronium] = reader.GetDouble(getCol(reader, "Neutronium"));
+            minerals[(int)MineralType.Corbomite] = reader.GetDouble(getCol(reader, "Corbomite"));
+            minerals[(int)MineralType.Tritanium] = reader.GetDouble(getCol(reader, "Tritanium"));
+            minerals[(int)MineralType.Boronide] = reader.GetDouble(getCol(reader, "Boronide"));
+            minerals[(int)MineralType.Mercassium] = reader.GetDouble(getCol(reader, "Mercassium"));
+            minerals[(int)MineralType.Vendarite] = reader.GetDouble(getCol(reader, "Vendarite"));
+            minerals[(int)MineralType.Sorium] = reader.GetDouble(getCol(reader, "Sorium"));
+            minerals[(int)MineralType.Uridium] = reader.GetDouble(getCol(reader, "Uridium"));
+            minerals[(int)MineralType.Corundium] = reader.GetDouble(getCol(reader, "Corundium"));
+            minerals[(int)MineralType.Gallicite] = reader.GetDouble(getCol(reader, "Gallicite"));
         }
 
         public struct PrgMsg {
@@ -264,6 +417,20 @@ namespace AuroraDashboard {
             int gameCnt = 0;
             while (gameReader.Read()) {
                 gameCnt++;
+            }
+
+            cmd = new SqliteCommand("SELECT * FROM FCT_HullDescription", con);
+            SqliteDataReader hullReader = cmd.ExecuteReader();
+
+            while (hullReader.Read()) {
+                AurHull hull = new AurHull();
+
+                hull.ID = hullReader.GetInt32(getCol(hullReader, "HullDescriptionID"));
+                hull.name = hullReader.GetString(getCol(hullReader, "Description"));
+                hull.abbrev = hullReader.GetString(getCol(hullReader, "HullAbbr"));
+
+                ret.hullIdx.Add(hull.ID, hull);
+                ret.Hulls.Add(hull);
             }
 
             cmd = new SqliteCommand("SELECT * FROM FCT_Game;", con);
@@ -356,7 +523,7 @@ namespace AuroraDashboard {
                     }
                 }
 
-                progress.Report(new PrgMsg("Loaded bodies.", prgBase + 0.6f * prgMult));
+                progress.Report(new PrgMsg("Loaded bodies.", prgBase + 0.55f * prgMult));
 
                 cmd = new SqliteCommand("SELECT * FROM FCT_SystemBodySurveys WHERE" + GameCl + ";", con);
                 reader = cmd.ExecuteReader();
@@ -401,7 +568,7 @@ namespace AuroraDashboard {
                     }
                 }
 
-                progress.Report(new PrgMsg("Loaded surveys.", prgBase + 0.7f * prgMult));
+                progress.Report(new PrgMsg("Loaded surveys.", prgBase + 0.6f * prgMult));
 
                 cmd = new SqliteCommand("SELECT * FROM FCT_Population WHERE" + GameCl + ";", con);
                 reader = cmd.ExecuteReader();
@@ -416,17 +583,7 @@ namespace AuroraDashboard {
                     pop.body = game.bodyIdx[reader.GetInt32(getCol(reader, "SystemBodyID"))];
                     pop.body.populations.Add(pop.race, pop);
 
-                    pop.minerals[(int)MineralType.Duranium] = reader.GetDouble(getCol(reader, "Duranium"));
-                    pop.minerals[(int)MineralType.Neutronium] = reader.GetDouble(getCol(reader, "Neutronium"));
-                    pop.minerals[(int)MineralType.Corbomite] = reader.GetDouble(getCol(reader, "Corbomite"));
-                    pop.minerals[(int)MineralType.Tritanium] = reader.GetDouble(getCol(reader, "Tritanium"));
-                    pop.minerals[(int)MineralType.Boronide] = reader.GetDouble(getCol(reader, "Boronide"));
-                    pop.minerals[(int)MineralType.Mercassium] = reader.GetDouble(getCol(reader, "Mercassium"));
-                    pop.minerals[(int)MineralType.Vendarite] = reader.GetDouble(getCol(reader, "Vendarite"));
-                    pop.minerals[(int)MineralType.Sorium] = reader.GetDouble(getCol(reader, "Sorium"));
-                    pop.minerals[(int)MineralType.Uridium] = reader.GetDouble(getCol(reader, "Uridium"));
-                    pop.minerals[(int)MineralType.Corundium] = reader.GetDouble(getCol(reader, "Corundium"));
-                    pop.minerals[(int)MineralType.Gallicite] = reader.GetDouble(getCol(reader, "Gallicite"));
+                    LoadMineralByNamedCols(pop.minerals, reader);
 
                     for (int i = 0; i <= (int)MineralType.Gallicite; i++) {
                         pop.race.minerals[i] += pop.minerals[i];
@@ -446,7 +603,75 @@ namespace AuroraDashboard {
                     game.popIdx.Add(pop.ID, pop);
                 }
 
-                progress.Report(new PrgMsg("Loaded populations.", prgBase + 0.8f * prgMult));
+                progress.Report(new PrgMsg("Loaded populations.", prgBase + 0.65f * prgMult));
+
+                cmd = new SqliteCommand("SELECT * FROM FCT_ShipDesignComponents WHERE" + GameCl + " OR GameID = 0;", con);
+                reader = cmd.ExecuteReader();
+
+                while (reader.Read()) {
+                    ComponentType type = AurComponent.GetComponentType(componentTypesToString[reader.GetInt32(getCol(reader, "ComponentTypeID"))]);
+
+                    AurComponent comp = AurComponent.CreateComponentOfType(type);
+
+                    comp.ID = reader.GetInt32(getCol(reader, "SDComponentID"));
+                    comp.name = reader.GetString(getCol(reader, "Name"));
+                    comp.size = reader.GetDouble(getCol(reader, "Size"));
+                    comp.cost = reader.GetDouble(getCol(reader, "Cost"));
+                    comp.crew = reader.GetInt32(getCol(reader, "Crew"));
+                    comp.HTK = reader.GetInt32(getCol(reader, "HTK"));
+                    LoadMineralByNamedCols(comp.mineralCost, reader);
+
+                    switch (comp.componentType) {
+                    case ComponentType.Weapon:
+                        AurCompWeapon weap = (AurCompWeapon)comp;
+
+                        weap.damage = reader.GetDouble(getCol(reader, "DamageOutput"));
+                        weap.shots = reader.GetInt32(getCol(reader, "NumberOfShots"));
+                        weap.rangeMod = reader.GetDouble(getCol(reader, "RangeModifier"));
+                        weap.rangeMax = reader.GetDouble(getCol(reader, "MaxWeaponRange"));
+                        weap.toHitMod = reader.GetDouble(getCol(reader, "WeaponToHitModifier"));
+                        weap.trackingSpeed = reader.GetDouble(getCol(reader, "TrackingSpeed"));
+                        weap.recharge = reader.GetDouble(getCol(reader, "RechargeRate"));
+                        weap.powerRequired = reader.GetDouble(getCol(reader, "PowerRequirement"));
+
+                        weap.isSpinal = reader.GetInt32(getCol(reader, "SpinalWeapon")) != 0;
+                        weap.ignoreShields = reader.GetInt32(getCol(reader, "IgnoreShields")) != 0;
+                        weap.ignoreArmor = reader.GetInt32(getCol(reader, "IgnoreArmour")) != 0;
+
+                        if(weap.rangeMax == 0) {
+                            weap.rangeMax = weap.damage * weap.rangeMod;
+                        }
+                        break;
+                    case ComponentType.BFC:
+                        AurCompBFC bfc = (AurCompBFC)comp;
+
+                        bfc.rangeMax = reader.GetDouble(getCol(reader, "ComponentValue"));
+                        bfc.trackingSpeed = reader.GetDouble(getCol(reader, "TrackingSpeed"));
+
+                        break;
+                    }
+
+                    game.componentIdx.Add(comp.ID, comp);
+                    game.Components[comp.componentType].Add(comp);
+                }
+
+                progress.Report(new PrgMsg("Loaded components.", prgBase + 0.7f * prgMult));
+
+                cmd = new SqliteCommand("SELECT * FROM FCT_RaceTech WHERE" + GameCl + " OR GameID = 0;", con);
+                reader = cmd.ExecuteReader();
+
+                while (reader.Read()) {
+                    int techID = reader.GetInt32(getCol(reader, "TechID"));
+                    int raceID = reader.GetInt32(getCol(reader, "RaceID"));
+                    bool obsolete = reader.GetInt32(getCol(reader, "Obsolete")) != 0;
+
+                    if (game.componentIdx.ContainsKey(techID)) {
+                        AurComponent comp = game.componentIdx[techID];
+                        game.raceIdx[raceID].knownCompIdx[comp.componentType].Add(comp);
+                    }
+                }
+
+                progress.Report(new PrgMsg("Loaded tech.", prgBase + 0.8f * prgMult));
 
                 cmd = new SqliteCommand("SELECT * FROM FCT_ShipClass WHERE" + GameCl + ";", con);
                 reader = cmd.ExecuteReader();
@@ -456,9 +681,41 @@ namespace AuroraDashboard {
 
                     cls.ID = reader.GetInt32(getCol(reader, "ShipClassID"));
                     cls.name = reader.GetString(getCol(reader, "ClassName"));
+                    cls.tonnage = reader.GetDouble(getCol(reader, "Size")) * 50;
+                    cls.cost = reader.GetDouble(getCol(reader, "Cost"));
+                    cls.armor = reader.GetInt32(getCol(reader, "ArmourThickness"));
+                    cls.crew = reader.GetInt32(getCol(reader, "Crew"));
+                    cls.supplies = reader.GetDouble(getCol(reader, "MaintSupplies"));
+                    cls.fuel = reader.GetDouble(getCol(reader, "FuelCapacity"));
+                    cls.fuelEff = reader.GetDouble(getCol(reader, "FuelEfficiency"));
+                    cls.maxSpeed = reader.GetDouble(getCol(reader, "MaxSpeed"));
+                    cls.ppv = reader.GetDouble(getCol(reader, "ProtectionValue"));
+                    cls.isMilitary = reader.GetInt32(getCol(reader, "Commercial")) != 0;
+                    cls.isObsolete = reader.GetInt32(getCol(reader, "Obsolete")) != 0;
+                    cls.hull = ret.hullIdx[reader.GetInt32(getCol(reader, "HullDescriptionID"))];
 
                     game.classIdx.Add(cls.ID, cls);
                     game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))].classes.Add(cls);
+                }
+
+                cmd = new SqliteCommand("SELECT * FROM FCT_ClassMaterials WHERE" + GameCl + ";", con);
+                reader = cmd.ExecuteReader();
+                while (reader.Read()) {
+                    int classIdx = reader.GetInt32(getCol(reader, "ClassID"));
+
+                    int minID = reader.GetInt32(getCol(reader, "MaterialID")) - 1;
+                    game.classIdx[classIdx].mineralCost[minID] = reader.GetDouble(getCol(reader, "Amount"));
+                }
+
+                cmd = new SqliteCommand("SELECT * FROM FCT_ClassComponent WHERE" + GameCl + ";", con);
+                reader = cmd.ExecuteReader();
+                while (reader.Read()) {
+                    int classIdx = reader.GetInt32(getCol(reader, "ClassID"));
+                    int compID = reader.GetInt32(getCol(reader, "ComponentID"));
+
+                    AurComponent component = game.componentIdx[compID];
+
+                    game.classIdx[classIdx].components[component.componentType].Add(new AurClass.Comp(component, reader.GetInt32(getCol(reader, "NumComponent"))));
                 }
 
                 progress.Report(new PrgMsg("Loaded classes.", prgBase + 0.85f * prgMult));
@@ -472,6 +729,13 @@ namespace AuroraDashboard {
                     fleet.ID = reader.GetInt32(getCol(reader, "FleetID"));
                     fleet.name = reader.GetString(getCol(reader, "FleetName"));
                     fleet.race = game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))];
+
+                    int orbitID = reader.GetInt32(getCol(reader, "OrbitBodyID"));
+                    fleet.orbitBody = orbitID != 0 ? game.bodyIdx[orbitID] : null;
+                    fleet.system = game.sysIdx[reader.GetInt32(getCol(reader, "SystemID"))];
+                    fleet.x = reader.GetDouble(getCol(reader, "Xcor"));
+                    fleet.y = reader.GetDouble(getCol(reader, "Ycor"));
+                    fleet.speed = reader.GetDouble(getCol(reader, "Speed"));
 
                     fleet.race.fleets.Add(fleet);
                     game.fleetIdx.Add(fleet.ID, fleet);
@@ -490,7 +754,12 @@ namespace AuroraDashboard {
                     ship.race = game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))];
                     ship.shipClass = game.classIdx[reader.GetInt32(getCol(reader, "ShipClassID"))];
                     ship.fleet = game.fleetIdx[reader.GetInt32(getCol(reader, "FleetID"))];
+                    ship.fleet.ships.Add(ship);
+                    ship.crew = reader.GetInt32(getCol(reader, "CurrentCrew"));
                     ship.fuel = reader.GetDouble(getCol(reader, "Fuel"));
+                    ship.grade = reader.GetDouble(getCol(reader, "GradePoints"));
+                    ship.overhaulTime = reader.GetDouble(getCol(reader, "LastOverhaul"));
+                    ship.supplies = reader.GetDouble(getCol(reader, "CurrentMaintSupplies"));
 
                     ship.race.ships.Add(ship);
                     game.shipIdx.Add(ship.ID, ship);

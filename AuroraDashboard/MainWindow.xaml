@@ -90,6 +90,71 @@
                     </lvc:CartesianChart>
                 </Grid>
             </TabItem>
+            <TabItem Header="Weapons">
+                <Grid Background="#FFE5E5E5">
+                    <ListView Margin="10,41,1454,10" Name="lstWeapons">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn>
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsSelected}"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}"/>
+                                <GridViewColumn Header="Size (HS)" DisplayMemberBinding="{Binding Size}"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                    <RadioButton x:Name="optAnalyzeWeapon" Content="Analyze Weapons" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Top" GroupName="AnalyzeTarget" IsChecked="True" Checked="optAnalyzeWeapon_Checked"/>
+                    <RadioButton x:Name="optAnalyzeShip" Content="Analyze Ship Armament" HorizontalAlignment="Left" Margin="149,10,0,0" VerticalAlignment="Top" GroupName="AnalyzeTarget" Checked="optAnalyzeWeapon_Checked"/>
+                    <lvc:CartesianChart x:Name="chrtWeapons" Margin="430,10,10,414" DisableAnimations="True" TooltipTimeout="0" LegendLocation="Left">
+                        <lvc:CartesianChart.ChartLegend>
+                            <lvc:DefaultLegend BulletSize="15"/>
+                        </lvc:CartesianChart.ChartLegend>
+                        <lvc:CartesianChart.AxisX>
+                            <lvc:Axis Position="LeftBottom" Title="Distance">
+                                <lvc:Axis.Separator>
+                                    <lvc:Separator IsEnabled="False"/>
+                                </lvc:Axis.Separator>
+                            </lvc:Axis>
+                        </lvc:CartesianChart.AxisX>
+                        <lvc:CartesianChart.AxisY>
+                            <lvc:Axis Position="LeftBottom" Title="Damage" MinValue="0">
+                                <lvc:Axis.Separator>
+                                    <lvc:Separator/>
+                                </lvc:Axis.Separator>
+                            </lvc:Axis>
+                        </lvc:CartesianChart.AxisY>
+                    </lvc:CartesianChart>
+                    <RadioButton x:Name="optAnalyzeDamage" Content="Damage" HorizontalAlignment="Left" Margin="430,535,0,0" VerticalAlignment="Top"  GroupName="AnalyzeTypeDmg" IsChecked="True" Checked="optWeaponAnalysis_Checked"/>
+                    <RadioButton x:Name="optAnalyzeShots" Content="NumShots" HorizontalAlignment="Left" Margin="430,556,0,0" VerticalAlignment="Top"  GroupName="AnalyzeTypeDmg" Checked="optWeaponAnalysis_Checked"/>
+                    <CheckBox x:Name="chkAnalyzePerHS" Content="Per HS" HorizontalAlignment="Left" Margin="535,538,0,0" VerticalAlignment="Top" Click="optWeaponAnalysis_Checked"/>
+                    <CheckBox x:Name="chkAnalyzePer5s" Content="Per 5s" HorizontalAlignment="Left" Margin="535,559,0,0" VerticalAlignment="Top" Click="optWeaponAnalysis_Checked"/>
+                    <TextBox x:Name="txtWeapFCRange" HorizontalAlignment="Left" Height="23" Margin="535,626,0,0" TextWrapping="Wrap" Text="400000" VerticalAlignment="Top" Width="66" TextChanged="txtWeapFCRange_TextChanged"/>
+                    <Label Content="FC Range" HorizontalAlignment="Left" Margin="430,624,0,0" VerticalAlignment="Top"/>
+                    <CheckBox x:Name="chkAnalyzeWithFC" Content="Consider FC Accuracy" HorizontalAlignment="Left" Margin="438,603,0,0" VerticalAlignment="Top" Click="optWeaponAnalysis_Checked"/>
+                    <Label Content="Pick FC" HorizontalAlignment="Left" Margin="430,690,0,0" VerticalAlignment="Top"/>
+                    <ComboBox x:Name="cmbWeapFC" HorizontalAlignment="Left" Margin="483,690,0,0" VerticalAlignment="Top" Width="301" SelectionChanged="cmbWeapFC_SelectionChanged"/>
+                    <TextBox x:Name="txtWeapFCTrack" HorizontalAlignment="Left" Height="23" Margin="535,657,0,0" TextWrapping="Wrap" Text="4000" VerticalAlignment="Top" Width="66" TextChanged="txtWeapFCTrack_TextChanged"/>
+                    <Label Content="FC Tracking" HorizontalAlignment="Left" Margin="430,655,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="txtWeapTargetSpeed" HorizontalAlignment="Left" Height="23" Margin="718,657,0,0" TextWrapping="Wrap" Text="4000" VerticalAlignment="Top" Width="66" TextChanged="txtWeapTargetSpeed_TextChanged"/>
+                    <Label Content="Target Speed" HorizontalAlignment="Left" Margin="622,655,0,0" VerticalAlignment="Top"/>
+                    <TextBox x:Name="txtWeapShipSpeed" HorizontalAlignment="Left" Height="23" Margin="718,628,0,0" TextWrapping="Wrap" Text="4000" VerticalAlignment="Top" Width="66" TextChanged="txtWeapShipSpeed_TextChanged"/>
+                    <Label Content="Ship Speed" HorizontalAlignment="Left" Margin="622,626,0,0" VerticalAlignment="Top"/>
+                    <CheckBox x:Name="chkAnalyzeObsolete" Content="Show Obsolete" HorizontalAlignment="Left" Margin="310,10,0,0" VerticalAlignment="Top" Width="115" Click="chkAnalyzeObsolete_Click"/>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Galaxy Map">
+            </TabItem>
+            <TabItem Header="Fleets">
+            </TabItem>
         </TabControl>
         <TextBox x:Name="txtOutput" HorizontalAlignment="Left" Height="976" Margin="1473,37,0,0" Grid.RowSpan="2" TextWrapping="Wrap" VerticalAlignment="Top" Width="429" FontSize="14" Visibility="Hidden"/>
         <Button x:Name="btnShowLog" Content="Show/Hide Log" HorizontalAlignment="Left" Margin="1473,10,0,0" Grid.RowSpan="2" VerticalAlignment="Top" Width="426" Click="btnShowLog_Click"/>

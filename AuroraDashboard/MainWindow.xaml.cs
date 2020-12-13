@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -49,6 +50,25 @@ namespace AuroraDashboard {
         }
     }
 
+    class WeaponListItem : INotifyPropertyChanged {
+        private bool _isSelected;
+        public bool IsSelected { get { return _isSelected; } set { _isSelected = value; OnPropertyChanged("IsSelected"); } }
+        public string Name { get; set; }
+        public string Size { set; get; }
+
+        public AurCompWeapon weapon;
+        public AurClass cls;
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged(string propertyName) {
+            PropertyChangedEventHandler handler = PropertyChanged;
+            if (handler != null) {
+                handler(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
+    }
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -63,6 +83,20 @@ namespace AuroraDashboard {
         public double[] mineralPrices = new double[Enum.GetValues(typeof(MineralType)).Length];
 
         public Func<double, string> mineralLabelFunc = (value) => (value / 1000).ToString("N0") + "K";
+
+        public static double getDmgAtDist(double baseDmg, double rangeMod, double maxRange, double range) {
+            if (range <= maxRange) {
+                double rangeFalloff = 1;
+
+                if (range > rangeMod) {
+                    rangeFalloff = rangeMod / range;
+                }
+
+                return Math.Floor(baseDmg * rangeFalloff);
+            }
+
+            return 0;
+        }
 
         private void CalcMineralPrice() {
             MineralPriceMod priceMod = MineralPriceMod.noMod;
@@ -221,12 +255,235 @@ namespace AuroraDashboard {
             PopulateMineralTab();
 
             UpdateProspect();
+
+            PopulateWeaponList();
         }
 
         void PopulateMineralTab() {
             RecalculateStockpilePie();
 
             chrtMineralStockpile.Series[0].Values = new ChartValues<double>(curRace.minerals);
+        }
+
+        void PopulateWeaponList() {
+            lstWeapons.Items.Clear();
+
+            cmbWeapFC.Items.Clear();
+            foreach (AurCompBFC bfc in curRace.knownCompIdx[ComponentType.BFC]) {
+                cmbWeapFC.Items.Add(bfc.name);
+            }
+
+            if (optAnalyzeWeapon.IsChecked == true) {
+                foreach (AurCompWeapon weapon in curRace.knownCompIdx[ComponentType.Weapon]) {
+                    WeaponListItem item = new WeaponListItem();
+                    item.Name = weapon.name;
+                    item.Size = weapon.size.ToString("N0");
+                    item.weapon = weapon;
+                    item.PropertyChanged += (object sender, PropertyChangedEventArgs e) => {
+                        UpdateWeaponAnalysis();
+                    };
+
+                    lstWeapons.Items.Add(item);
+                }
+            } else {
+                foreach (AurClass cls in curRace.classes) {
+                    if (cls.ppv > 0 && (chkAnalyzeObsolete.IsChecked == true || !cls.isObsolete)) {
+                        WeaponListItem item = new WeaponListItem();
+                        item.Name = cls.name;
+                        item.Size = (cls.tonnage / 50).ToString("N0");
+                        item.cls = cls;
+                        item.PropertyChanged += (object sender, PropertyChangedEventArgs e) => {
+                            UpdateWeaponAnalysis();
+                        };
+
+                        lstWeapons.Items.Add(item);
+                    }
+                }
+            }
+
+            UpdateWeaponAnalysis();
+        }
+
+        double weaponFCRange = 400000;
+        double weaponFCSpeed = 4000;
+        double weaponShipSpeed = 4000;
+        double weaponTargetSpeed = 4000;
+        Dictionary<AurCompWeapon, LineSeries> analyzedWeapons = new Dictionary<AurCompWeapon, LineSeries>();
+        Dictionary<AurClass, LineSeries> analyzedClasses = new Dictionary<AurClass, LineSeries>();
+        void UpdateWeaponAnalysis() {
+            chrtWeapons.UpdaterState = UpdaterState.Paused;
+
+            double maxRange = 0;
+            if (optAnalyzeWeapon.IsChecked == true) {
+                if(analyzedClasses.Keys.Count > 0) {
+                    chrtWeapons.Series.Clear();
+                }
+                analyzedClasses.Clear();
+
+                foreach (WeaponListItem item in lstWeapons.Items) {
+                    if (item.IsSelected) {
+                        if (!analyzedWeapons.ContainsKey(item.weapon)) {
+                            LineSeries series = new LineSeries();
+
+                            chrtWeapons.Series.Add(series);
+                            analyzedWeapons.Add(item.weapon, series);
+                        }
+                    } else {
+                        if (analyzedWeapons.ContainsKey(item.weapon)) {
+                            chrtWeapons.Series.Remove(analyzedWeapons[item.weapon]);
+                            analyzedWeapons.Remove(item.weapon);
+                        }
+                    }
+                }
+            } else {
+                if (analyzedWeapons.Keys.Count > 0) {
+                    chrtWeapons.Series.Clear();
+                }
+                analyzedWeapons.Clear();
+
+                foreach (WeaponListItem item in lstWeapons.Items) {
+                    if (item.IsSelected) {
+                        if (!analyzedClasses.ContainsKey(item.cls)) {
+                            LineSeries series = new LineSeries();
+
+                            chrtWeapons.Series.Add(series);
+                            analyzedClasses.Add(item.cls, series);
+                        }
+                    } else {
+                        if (analyzedClasses.ContainsKey(item.cls)) {
+                            chrtWeapons.Series.Remove(analyzedClasses[item.cls]);
+                            analyzedClasses.Remove(item.cls);
+                        }
+                    }
+                }
+            }
+
+            double maxWeaponFCRange = weaponFCRange;
+            if (optAnalyzeWeapon.IsChecked == true) {
+                foreach (AurCompWeapon weapon in analyzedWeapons.Keys) {
+                    maxRange = Math.Max(weapon.rangeMax, maxRange);
+                }
+            } else {
+                foreach (AurClass cls in analyzedClasses.Keys) {
+                    foreach (AurClass.Comp bfc in cls.components[ComponentType.BFC]) {
+                        maxWeaponFCRange = Math.Max(((AurCompBFC)bfc.component).rangeMax, maxWeaponFCRange);
+                    }
+
+                    foreach (AurClass.Comp weaponType in cls.components[ComponentType.Weapon]) {
+                        maxRange = Math.Max(((AurCompWeapon)weaponType.component).rangeMax, maxRange);
+                    }
+                }
+            }
+
+            maxRange = Math.Min(maxRange, maxWeaponFCRange);
+
+            int sampleCnt = 100;
+            List<string> labelsX = new List<string>();
+            for (int i = 0; i < sampleCnt; i++) {
+                double dist = maxRange * i / sampleCnt;
+                labelsX.Add(dist.ToString("N0"));
+            }
+            //List<string> labelsY = new List<string>();
+
+            if (optAnalyzeWeapon.IsChecked == true) {
+                foreach (AurCompWeapon weapon in analyzedWeapons.Keys) {
+                    analyzedWeapons[weapon].Values = new ChartValues<double>();
+                    analyzedWeapons[weapon].Title = weapon.name;
+                    analyzedWeapons[weapon].LineSmoothness = 0;
+
+                    int shotInterval = weapon.powerRequired > 0 ? ((int)Math.Ceiling(weapon.powerRequired / weapon.recharge)) : 1;
+
+                    double trackingSpeed = weapon.trackingSpeed > 0 ? weapon.trackingSpeed : weaponShipSpeed;
+                    trackingSpeed = Math.Min(trackingSpeed, weaponFCSpeed);
+
+                    for (int i = 0; i < sampleCnt; i++) {
+                        double dist = maxRange * i / sampleCnt;
+
+                        double dmg = GetWeaponAnalysisValue(weapon, dist, weaponFCRange, shotInterval, trackingSpeed, weaponTargetSpeed);
+
+                        if (dmg > 0) {
+                            analyzedWeapons[weapon].Values.Add(dmg);
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                foreach (AurClass cls in analyzedClasses.Keys) {
+                    analyzedClasses[cls].Values = new ChartValues<double>();
+                    analyzedClasses[cls].Title = cls.name;
+                    analyzedClasses[cls].LineSmoothness = 0;
+
+                    for (int i = 0; i < sampleCnt; i++) {
+                        double dist = maxRange * i / sampleCnt;
+                        double dmgSum = 0;
+
+                        foreach (AurClass.Comp weaponType in cls.components[ComponentType.Weapon]) {
+                            AurCompWeapon weapon = (AurCompWeapon)weaponType.component;
+
+                            int shotInterval = weapon.powerRequired > 0 ? ((int)Math.Ceiling(weapon.powerRequired / weapon.recharge)) : 1;
+
+                            double dmgPotential = 0;
+                            foreach (AurClass.Comp bfc in cls.components[ComponentType.BFC]) {
+                                double fcRange = ((AurCompBFC)bfc.component).rangeMax;
+                                double fcTrackingSpeed = ((AurCompBFC)bfc.component).trackingSpeed;
+
+                                double trackingSpeed = weapon.trackingSpeed > 0 ? weapon.trackingSpeed : cls.maxSpeed;
+                                trackingSpeed = Math.Min(trackingSpeed, fcTrackingSpeed);
+
+                                double dmg = GetWeaponAnalysisValue(weapon, dist, fcRange, shotInterval, trackingSpeed, weaponTargetSpeed);
+
+                                dmgPotential = Math.Max(dmg * weaponType.number, dmgPotential);
+                            }
+
+                            dmgSum += dmgPotential;
+                        }
+
+
+                        if (dmgSum > 0) {
+                            analyzedClasses[cls].Values.Add(dmgSum);
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            chrtWeapons.AxisX[0].Labels = labelsX;
+            chrtWeapons.UpdaterState = UpdaterState.Running;
+            chrtWeapons.Update();
+        }
+
+        double GetWeaponAnalysisValue(AurCompWeapon weapon, double dist, double fcRange, int shotInterval, double fcTrackingSpeed, double targetSpeed) {
+            double dmg = getDmgAtDist(weapon.damage, weapon.rangeMod, weapon.rangeMax, dist) * weapon.shots;
+
+            if (optAnalyzeShots.IsChecked == true) {
+                if (dmg > 0) {
+                    dmg = weapon.shots;
+                } else {
+                    dmg = 0;
+                }
+            }
+
+            dmg *= weapon.toHitMod;
+
+            if (chkAnalyzePer5s.IsChecked == true) {
+                dmg /= shotInterval;
+            }
+
+            if (chkAnalyzePerHS.IsChecked == true) {
+                dmg /= weapon.size;
+            }
+
+            if (chkAnalyzeWithFC.IsChecked == true) {
+                dmg *= (1.0 - dist / fcRange);
+
+                if (fcTrackingSpeed < targetSpeed) {
+                    dmg *= (fcTrackingSpeed / targetSpeed);
+                }
+            }
+
+            return dmg;
         }
 
         double prospectAmountCap = 10000000;
@@ -398,6 +655,86 @@ namespace AuroraDashboard {
 
             if (curRace != null) {
                 UpdateProspect();
+            }
+        }
+
+        private void txtWeapFCRange_TextChanged(object sender, TextChangedEventArgs e) {
+            double val;
+            if (double.TryParse(txtWeapFCRange.Text, out val) && val > 0) {
+                weaponFCRange = val;
+            }
+
+            if (curRace != null) {
+                UpdateWeaponAnalysis();
+            }
+        }
+
+        private void txtWeapFCTrack_TextChanged(object sender, TextChangedEventArgs e) {
+            double val;
+            if (double.TryParse(txtWeapFCTrack.Text, out val) && val > 0) {
+                weaponFCSpeed = val;
+            }
+
+            if (curRace != null && chkAnalyzeWithFC.IsChecked == true) {
+                UpdateWeaponAnalysis();
+            }
+        }
+
+        private void txtWeapShipSpeed_TextChanged(object sender, TextChangedEventArgs e) {
+            double val;
+            if (double.TryParse(txtWeapShipSpeed.Text, out val) && val > 0) {
+                weaponShipSpeed = val;
+            }
+
+            if (curRace != null && chkAnalyzeWithFC.IsChecked == true) {
+                UpdateWeaponAnalysis();
+            }
+        }
+
+        private void txtWeapTargetSpeed_TextChanged(object sender, TextChangedEventArgs e) {
+            double val;
+            if (double.TryParse(txtWeapTargetSpeed.Text, out val) && val > 0) {
+                weaponTargetSpeed = val;
+            }
+
+            if (curRace != null && chkAnalyzeWithFC.IsChecked == true) {
+                UpdateWeaponAnalysis();
+            }
+        }
+
+        private void optWeaponAnalysis_Checked(object sender, RoutedEventArgs e) {
+            if (curRace != null) {
+                UpdateWeaponAnalysis();
+            }
+        }
+
+        private void optAnalyzeWeapon_Checked(object sender, RoutedEventArgs e) {
+            // null check necessary during initialization
+            if (cmbWeapFC != null) {
+                bool analyzeWeapon = optAnalyzeWeapon.IsChecked == true;
+                cmbWeapFC.IsEnabled = analyzeWeapon;
+                txtWeapFCRange.IsEnabled = analyzeWeapon;
+                txtWeapFCTrack.IsEnabled = analyzeWeapon;
+                txtWeapShipSpeed.IsEnabled = analyzeWeapon;
+            }
+
+            if (curRace != null) {
+                PopulateWeaponList();
+            }
+        }
+
+        private void chkAnalyzeObsolete_Click(object sender, RoutedEventArgs e) {
+            if (curRace != null) {
+                PopulateWeaponList();
+            }
+        }
+
+        private void cmbWeapFC_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+            if(curRace != null && cmbWeapFC.SelectedIndex > 0) {
+                AurCompBFC bfc = (AurCompBFC)curRace.knownCompIdx[ComponentType.BFC][cmbWeapFC.SelectedIndex];
+
+                txtWeapFCRange.Text = bfc.rangeMax.ToString();
+                txtWeapFCTrack.Text = bfc.trackingSpeed.ToString();
             }
         }
     }
