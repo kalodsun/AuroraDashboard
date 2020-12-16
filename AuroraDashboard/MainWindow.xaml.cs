@@ -131,6 +131,7 @@ namespace AuroraDashboard {
         }
 
         public SeriesCollection pieStockpilesSeries = new SeriesCollection();
+        public SeriesCollection pieMiningSeries = new SeriesCollection();
         public GridView prospectGrid;
 
         void InitMineralSelector(ComboBox comboBox) {
@@ -156,6 +157,10 @@ namespace AuroraDashboard {
             return amountFunc;
         }
 
+        int pieStockpilesLimit = 20;
+        int pieMiningLimit = 15;
+        int chrtMiningLimit = 5;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -174,6 +179,7 @@ namespace AuroraDashboard {
             cmbProspectFor.SelectedIndex = 1;
 
             pieStockpiles.Series = pieStockpilesSeries;
+            pieMining.Series = pieMiningSeries;
 
             chrtMineralPrice.Series[0].LabelPoint = (chartPoint) => chartPoint.Y.ToString("F2");
             chrtMineralPrice.AxisX[0].Labels = Enum.GetNames(typeof(MineralType));
@@ -182,6 +188,8 @@ namespace AuroraDashboard {
 
             chrtMineralStockpile.Series[0].LabelPoint = (chartPoint) => mineralLabelFunc(chartPoint.Y);
             chrtMineralStockpile.AxisX[0].Labels = Enum.GetNames(typeof(MineralType));
+
+            chrtMineralMining.AxisX[0].Labels = Enum.GetNames(typeof(MineralType));
 
             chrtProspect.Series[0].LabelPoint = (chartPoint) => {
                 if (cmbProspectFor.SelectedIndex == 0) {
@@ -271,6 +279,8 @@ namespace AuroraDashboard {
 
         void PopulateMineralTab() {
             RecalculateStockpilePie();
+
+            RecalculateMiningCharts();
 
             chrtMineralStockpile.Series[0].Values = new ChartValues<double>(curRace.minerals);
         }
@@ -583,9 +593,17 @@ namespace AuroraDashboard {
             Func<double[], double> amountFunc = GetMineralSelectorFunc(cmbStockpilePieMineral);
 
             int seriesIdx = 0;
+            double highestAmount = 0;
             foreach (AurPop pop in (from pop in curRace.populations where amountFunc(pop.minerals) > 0 orderby amountFunc(pop.minerals) descending select pop)) {
+                double amount = amountFunc(pop.minerals);
+                highestAmount = Math.Max(highestAmount, amount);
+
+                if(amount / highestAmount < 0.025) {
+                    break;
+                }
+
                 ChartValues<double> val = new ChartValues<double>();
-                val.Add(amountFunc(pop.minerals));
+                val.Add(amount);
 
                 PieSeries pieSeries;
                 if (pieStockpilesSeries.Count <= seriesIdx) {
@@ -608,6 +626,135 @@ namespace AuroraDashboard {
 
             pieStockpiles.UpdaterState = UpdaterState.Running;
             pieStockpiles.Update();
+        }
+
+        void AddPieMineralsSeries(string name, double mineValue, double highestValue, double[] inst, double omCnt) {
+            PieSeries pieSeries = new PieSeries();
+            pieMiningSeries.Add(pieSeries);
+
+            ChartValues<double> val = new ChartValues<double>();
+            val.Add(mineValue);
+
+            pieSeries.Values = val;
+            pieSeries.Title = "";
+            pieSeries.LabelPoint = (chartPoint) => {
+                return name + " (" + mineValue.ToString("N1") + ")\n" +
+                    inst[(int)InstallationType.Mine].ToString("N1") + "M " +
+                    inst[(int)InstallationType.AutoMine].ToString("N1") + "AM " +
+                    inst[(int)InstallationType.CivMine].ToString("N1") + "CIVM " +
+                    omCnt.ToString() + "OM";
+            };
+            pieSeries.DataLabels = mineValue / highestValue > 0.33;
+        }
+
+        class MineralBar {
+            public MineralType mineralType;
+            public double amount;
+        }
+        LiveCharts.Configurations.CartesianMapper<MineralBar> mineralBarsMapper = new LiveCharts.Configurations.CartesianMapper<MineralBar>();
+
+        void RecalculateMiningCharts() {
+            pieMining.UpdaterState = UpdaterState.Paused;
+            chrtMineralMining.UpdaterState = UpdaterState.Paused;
+
+            SeriesCollection miningBarSeries = chrtMineralMining.Series;
+
+            Func<AurPop, double> mineValueFunc = (AurPop pop) => {
+                int omModuleCnt = 0;
+                foreach (AurFleet fleet in pop.oribitingFleets) {
+                    foreach(AurShip ship in fleet.ships) {
+                        omModuleCnt += ship.shipClass.miningModules;
+                    }
+                }
+
+                double civVal = chkMineIncludeCiv.IsChecked == true ? pop.installations[(int)InstallationType.CivMine] * 10 : 0;
+                return civVal + pop.installations[(int)InstallationType.Mine] + pop.installations[(int)InstallationType.AutoMine] + omModuleCnt;
+            };
+
+            var miningPops = (from pop in curRace.populations where mineValueFunc(pop) > 0 select pop);
+
+            pieMiningSeries.Clear();
+            miningBarSeries.Clear();
+            double highestValue = 0;
+            double othersValSum = 0;
+            double[] othersInstSum = new double[Enum.GetValues(typeof(InstallationType)).Length];
+            int othersOmCnt = 0;
+            int seriesIdx = 0;
+            foreach (AurPop pop in (from pop in miningPops orderby mineValueFunc(pop) descending select pop)) {
+                double mineValue = mineValueFunc(pop);
+                highestValue = Math.Max(highestValue, mineValue);
+
+                int omModuleCnt = 0;
+                foreach (AurFleet fleet in pop.oribitingFleets) {
+                    foreach (AurShip ship in fleet.ships) {
+                        omModuleCnt += ship.shipClass.miningModules;
+                    }
+                }
+
+                if (seriesIdx < pieMiningLimit && mineValue / highestValue > 0.05) {
+                    AddPieMineralsSeries(pop.name, mineValue, highestValue, pop.installations, omModuleCnt);
+                } else {
+                    othersValSum += mineValue;
+                    othersOmCnt += omModuleCnt;
+                    for(int i = 0;i < othersInstSum.Length; i++) {
+                        othersInstSum[i] += pop.installations[i];
+                    }
+                }
+
+                seriesIdx++;
+            }
+
+            if (othersValSum > 0) {
+                AddPieMineralsSeries("Others", othersValSum, highestValue, othersInstSum, othersOmCnt);
+            }
+
+            mineralBarsMapper.X(v => (int)v.mineralType).Y(v => v.amount);
+
+            double[] othersMiningProdSum = new double[Enum.GetValues(typeof(MineralType)).Length];
+            Dictionary<AurPop, StackedColumnSeries> stackedSeries = new Dictionary<AurPop, StackedColumnSeries>();
+            for (int i = 0; i < othersMiningProdSum.Length; i++) {
+                seriesIdx = 0;
+                foreach (AurPop pop in (from pop in miningPops orderby mineValueFunc(pop) * pop.body.mineralsAcc[i] descending select pop)) {
+                    double mineralProdValue = mineValueFunc(pop) * pop.body.mineralsAcc[i];
+
+                    if (seriesIdx < chrtMiningLimit) {
+                        StackedColumnSeries columnSeries;
+                        if (!stackedSeries.ContainsKey(pop)) {
+                            columnSeries = new StackedColumnSeries(mineralBarsMapper);
+                            stackedSeries.Add(pop, columnSeries);
+
+                            columnSeries.Title = pop.name;
+
+                            ChartValues<MineralBar> values = new ChartValues<MineralBar>();
+                            columnSeries.Values = values;
+
+                            //columnSeries.LabelPoint = (chartPoint) => pop.name + " " + chartPoint.Y.ToString("F1");
+                            columnSeries.DataLabels = true;
+                            columnSeries.LabelsPosition = BarLabelPosition.Perpendicular;
+
+                            miningBarSeries.Add(columnSeries);
+                        } else {
+                            columnSeries = stackedSeries[pop];
+                        }
+
+                        columnSeries.Values.Add(new MineralBar() { mineralType = (MineralType)i, amount = mineralProdValue });
+                    } else {
+                        othersMiningProdSum[i] += mineralProdValue;
+                    }
+
+                    seriesIdx++;
+                }
+            }
+
+            StackedColumnSeries othersColumnSeries = new StackedColumnSeries();
+            othersColumnSeries.Title = "Others";
+            othersColumnSeries.Values = new ChartValues<double>(othersMiningProdSum);
+            miningBarSeries.Add(othersColumnSeries);
+
+            pieMining.UpdaterState = UpdaterState.Running;
+            chrtMineralMining.UpdaterState = UpdaterState.Running;
+            chrtMineralMining.Update();
+            pieMining.Update();
         }
 
         private void cmbGame_SelectionChanged(object sender, SelectionChangedEventArgs e) {
@@ -770,6 +917,26 @@ namespace AuroraDashboard {
 
                 txtWeapFCRange.Text = bfc.rangeMax.ToString();
                 txtWeapFCTrack.Text = bfc.trackingSpeed.ToString();
+            }
+        }
+
+        private void chkMineIncludeCiv_Click(object sender, RoutedEventArgs e) {
+            if (curRace != null) {
+                RecalculateMiningCharts();
+            }
+        }
+
+        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+            if (e.Source is TabControl) {
+                pieStockpiles.UpdaterState = tabMinerals.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
+                pieMining.UpdaterState = tabMinerals.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
+                chrtMineralPrice.UpdaterState = tabMinerals.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
+                chrtMineralStockpile.UpdaterState = tabMinerals.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
+                chrtMineralMining.UpdaterState = tabMinerals.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
+
+                chrtProspect.UpdaterState = tabProspecting.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
+
+                chrtWeapons.UpdaterState = tabWeapons.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
             }
         }
     }

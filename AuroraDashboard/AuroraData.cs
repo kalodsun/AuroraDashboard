@@ -7,7 +7,7 @@ using Microsoft.Data.Sqlite;
 
 namespace AuroraDashboard {
 
-    public enum InstallationType { CFactory, FFactory, OFactory, Mine, AutoMine, DSTS, Refinery, FinCenter, Maint, Research, Terraformer, MDriver, Infr, InfrLG}
+    public enum InstallationType { CFactory, FFactory, OFactory, Mine, AutoMine, DSTS, Refinery, FinCenter, Maint, Research, Terraformer, MDriver, Infr, InfrLG, CivMine }
     public enum MineralType { Duranium, Neutronium, Corbomite, Tritanium, Boronide, Mercassium, Vendarite, Sorium, Uridium, Corundium, Gallicite }
 
     public class AurHull {
@@ -112,6 +112,7 @@ namespace AuroraDashboard {
         public double ppv;
         public int armor;
         public int crew;
+        public int miningModules;
         public bool isMilitary;
         public bool isObsolete;
         public AurHull hull;
@@ -146,6 +147,7 @@ namespace AuroraDashboard {
         public List<AurShip> ships = new List<AurShip>();
         public AurSystem system;
         public AurBody orbitBody;
+        public AurPop assignedPop;
 
         public double x, y;
         public double speed;
@@ -160,6 +162,7 @@ namespace AuroraDashboard {
 
         public double[] installations = new double[Enum.GetValues(typeof(InstallationType)).Length];
         public double[] minerals = new double[Enum.GetValues(typeof(MineralType)).Length];
+        public List<AurFleet> oribitingFleets = new List<AurFleet>();
     }
 
     public class AurRSystem {
@@ -376,6 +379,10 @@ namespace AuroraDashboard {
                 case "Financial Centre":
                     instToID[(int)InstallationType.FinCenter] = ID;
                     IDToInst[ID] = (int)InstallationType.FinCenter;
+                    break;
+                case "Civilian Mining Complex":
+                    instToID[(int)InstallationType.CivMine] = ID;
+                    IDToInst[ID] = (int)InstallationType.CivMine;
                     break;
                 }
             }
@@ -703,6 +710,7 @@ namespace AuroraDashboard {
                     cls.isMilitary = reader.GetInt32(getCol(reader, "Commercial")) != 0;
                     cls.isObsolete = reader.GetInt32(getCol(reader, "Obsolete")) != 0;
                     cls.hull = ret.hullIdx[reader.GetInt32(getCol(reader, "HullDescriptionID"))];
+                    cls.miningModules = reader.GetInt32(getCol(reader, "MiningModules"));
 
                     game.classIdx.Add(cls.ID, cls);
                     game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))].classes.Add(cls);
@@ -746,6 +754,12 @@ namespace AuroraDashboard {
                     fleet.x = reader.GetDouble(getCol(reader, "Xcor"));
                     fleet.y = reader.GetDouble(getCol(reader, "Ycor"));
                     fleet.speed = reader.GetDouble(getCol(reader, "Speed"));
+
+                    int assignedPopID = reader.GetInt32(getCol(reader, "AssignedPopulationID"));
+                    if(assignedPopID != 0) {
+                        fleet.assignedPop = game.popIdx[assignedPopID];
+                        fleet.assignedPop.oribitingFleets.Add(fleet);
+                    }
 
                     fleet.race.fleets.Add(fleet);
                     game.fleetIdx.Add(fleet.ID, fleet);
