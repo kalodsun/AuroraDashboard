@@ -77,7 +77,6 @@ namespace AuroraDashboard {
     public partial class MainWindow : Window
     {
         AuroraData aurData;
-        AuroraDBReader dbReader = new AuroraDBReader();
 
         AurGame curGame;
         AurRace curRace;
@@ -157,9 +156,9 @@ namespace AuroraDashboard {
             return amountFunc;
         }
 
-        int pieStockpilesLimit = 20;
-        int pieMiningLimit = 15;
-        int chrtMiningLimit = 5;
+        readonly int pieStockpilesLimit = 20;
+        readonly int pieMiningLimit = 15;
+        readonly int chrtMiningLimit = 5;
 
         public MainWindow()
         {
@@ -209,17 +208,27 @@ namespace AuroraDashboard {
         }
 
         private async void btnLoadDB_Click(object sender, RoutedEventArgs e) {
-            Progress<AuroraDBReader.PrgMsg> progress = new Progress<AuroraDBReader.PrgMsg>();
-            progress.ProgressChanged += UpdateProgress;
+            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog();
+            openFileDialog.Filter = "Aurora Database|*.db|All Files|*.*";
 
-            txtOutput.Visibility = Visibility.Visible;
+            if (openFileDialog.ShowDialog() == true) {
+                Progress<AuroraDBReader.PrgMsg> progress = new Progress<AuroraDBReader.PrgMsg>();
+                progress.ProgressChanged += UpdateProgress;
 
-            await Task.Run(() => {
-                aurData = dbReader.ReadDB(@"Data Source=D:\Projects\AuroraDashboard\AuroraDB.db;", progress);
-            });
+                txtOutput.Visibility = Visibility.Visible;
 
-            txtOutput.Visibility = Visibility.Hidden;
-            ReloadGameCmb();
+                AuroraDBReader dbReader = new AuroraDBReader();
+                await Task.Run(() => {
+                    aurData = dbReader.ReadDB(openFileDialog.FileName, progress);
+                });
+
+                if (aurData != null) {
+                    txtOutput.Visibility = Visibility.Hidden;
+                    ReloadGameCmb();
+                } else {
+                    txtOutput.Text += "Error loading database file.\n";
+                }
+            }
         }
 
         private void UpdateProgress(object sender, AuroraDBReader.PrgMsg prg) {
@@ -527,16 +536,16 @@ namespace AuroraDashboard {
         void UpdateProspect() {
             chrtProspect.UpdaterState = UpdaterState.Paused;
 
-            Func<AurBody, bool> filterFunc = (body) => {
-                if(cmbProspectTarget.SelectedIndex != 0) {
+            bool filterFunc(AurBody body) {
+                if (cmbProspectTarget.SelectedIndex != 0) {
                     return (body.populations.Count > 0) == (cmbProspectTarget.SelectedIndex == 1);
                 }
 
                 return true;
-            };
+            }
 
             Func<double[], double> amountFunc = GetMineralSelectorFunc(cmbProspectMineral);
-            Func<AurBody, double> valueFunc = (body) => {
+            double valueFunc(AurBody body) {
                 double[] mineralsAdjsuted = new double[Enum.GetValues(typeof(MineralType)).Length];
                 for (int i = 0; i < Enum.GetValues(typeof(MineralType)).Length; i++) {
                     switch (cmbProspectFor.SelectedIndex) {
@@ -553,7 +562,7 @@ namespace AuroraDashboard {
                 }
 
                 return amountFunc(mineralsAdjsuted);
-            };
+            }
 
             ChartValues<double> values = new ChartValues<double>();
             List<string> labels = new List<string>();
@@ -659,17 +668,17 @@ namespace AuroraDashboard {
 
             SeriesCollection miningBarSeries = chrtMineralMining.Series;
 
-            Func<AurPop, double> mineValueFunc = (AurPop pop) => {
+            double mineValueFunc(AurPop pop) {
                 int omModuleCnt = 0;
                 foreach (AurFleet fleet in pop.oribitingFleets) {
-                    foreach(AurShip ship in fleet.ships) {
+                    foreach (AurShip ship in fleet.ships) {
                         omModuleCnt += ship.shipClass.miningModules;
                     }
                 }
 
                 double civVal = chkMineIncludeCiv.IsChecked == true ? pop.installations[(int)InstallationType.CivMine] * 10 : 0;
                 return civVal + pop.installations[(int)InstallationType.Mine] + pop.installations[(int)InstallationType.AutoMine] + omModuleCnt;
-            };
+            }
 
             var miningPops = (from pop in curRace.populations where mineValueFunc(pop) > 0 select pop);
 
@@ -840,8 +849,7 @@ namespace AuroraDashboard {
         }
 
         private void txtWeapFCTrack_TextChanged(object sender, TextChangedEventArgs e) {
-            double val;
-            if (double.TryParse(txtWeapFCTrack.Text, out val) && val > 0) {
+            if (double.TryParse(txtWeapFCTrack.Text, out double val) && val > 0) {
                 weaponFCSpeed = val;
             }
 
@@ -851,8 +859,7 @@ namespace AuroraDashboard {
         }
 
         private void txtWeapShipSpeed_TextChanged(object sender, TextChangedEventArgs e) {
-            double val;
-            if (double.TryParse(txtWeapShipSpeed.Text, out val) && val > 0) {
+            if (double.TryParse(txtWeapShipSpeed.Text, out double val) && val > 0) {
                 weaponShipSpeed = val;
             }
 
@@ -862,8 +869,7 @@ namespace AuroraDashboard {
         }
 
         private void txtWeapTargetSpeed_TextChanged(object sender, TextChangedEventArgs e) {
-            double val;
-            if (double.TryParse(txtWeapTargetSpeed.Text, out val) && val > 0) {
+            if (double.TryParse(txtWeapTargetSpeed.Text, out double val) && val > 0) {
                 weaponTargetSpeed = val;
             }
 

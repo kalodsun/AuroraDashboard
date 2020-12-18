@@ -422,8 +422,17 @@ namespace AuroraDashboard {
         public AuroraData ReadDB(string dbPath, IProgress<PrgMsg> progress) {
             AuroraData ret = new AuroraData();
 
-            con = new SqliteConnection(dbPath);
-            con.Open();
+            try {
+                var conString = new SqliteConnectionStringBuilder {
+                    DataSource = dbPath,
+                    Mode = SqliteOpenMode.ReadOnly
+                };
+
+                con = new SqliteConnection(conString.ConnectionString);
+                con.Open();
+            } catch (SqliteException ex) {
+                return null;
+            }
 
             LoadDIMData(con);
 
