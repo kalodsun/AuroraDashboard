@@ -7,7 +7,8 @@ using Microsoft.Data.Sqlite;
 
 namespace AuroraDashboard {
 
-    public enum InstallationType { CFactory, FFactory, OFactory, Mine, AutoMine, DSTS, Refinery, FinCenter, Maint, Research, Terraformer, MDriver, Infr, InfrLG, CivMine }
+    public enum InstallationType { ConstructionFactory, FighterFactory, OrdnanceFactory, Mine, AutoMine, DSTS, Refinery, FinancialCenter, MaintenanceFacility,
+        ResearchFacility, TerraforingInstallation, MassDriver, Infrastructure, InfrastructureLG, CivilianMine, Other }
     public enum MineralType { Duranium, Neutronium, Corbomite, Tritanium, Boronide, Mercassium, Vendarite, Sorium, Uridium, Corundium, Gallicite }
 
     public class AurHull {
@@ -106,7 +107,7 @@ namespace AuroraDashboard {
         public double cost;
         public double[] mineralCost = new double[Enum.GetValues(typeof(MineralType)).Length];
         public double fuel;
-        public double supplies;
+        public double msp;
         public double fuelEff;
         public double maxSpeed;
         public double ppv;
@@ -131,7 +132,7 @@ namespace AuroraDashboard {
         public int crew;
         public double fuel;
         public double grade;
-        public double supplies;
+        public double msp;
         public double overhaulTime;
 
         public AurRace race;
@@ -159,6 +160,12 @@ namespace AuroraDashboard {
 
         public AurRace race;
         public AurBody body;
+        public AurSpecies species;
+        public double population;
+        public double fuel;
+        public double fuelProd;
+        public double msp;
+        public double mspProd;
 
         public double[] installations = new double[Enum.GetValues(typeof(InstallationType)).Length];
         public double[] minerals = new double[Enum.GetValues(typeof(MineralType)).Length];
@@ -222,6 +229,11 @@ namespace AuroraDashboard {
         public List<AurBody> Bodies = new List<AurBody>();
     }
 
+    public class AurSpecies {
+        public int ID;
+        public string name;
+    }
+
     public class AurRace {
         public class Comp {
             public AurComponent component;
@@ -237,6 +249,18 @@ namespace AuroraDashboard {
         public string name;
 
         public double[] minerals = new double[Enum.GetValues(typeof(MineralType)).Length];
+        public double[] installations = new double[Enum.GetValues(typeof(InstallationType)).Length];
+
+        public double populationSum;
+
+        public double popFuelSum;
+        public double shipFuelSum;
+        public double shipFuelCapSum;
+
+        public double popMSPSum;
+        public double shipMSPSum;
+        public double shipMSPCapSum;
+        public double shipMSPAnnualCost;
 
         public AurPop capital;
         public List<AurRSystem> knownSystems = new List<AurRSystem>();
@@ -262,10 +286,12 @@ namespace AuroraDashboard {
         public double curTime;
 
         public List<AurRace> Races = new List<AurRace>();
+        public List<AurSpecies> Species = new List<AurSpecies>();
         public List<AurSystem> Systems = new List<AurSystem>();
         public Dictionary<ComponentType, List<AurComponent>> Components = new Dictionary<ComponentType, List<AurComponent>>();
 
         public Dictionary<int, AurRace> raceIdx = new Dictionary<int, AurRace>();
+        public Dictionary<int, AurSpecies> speciesIdx = new Dictionary<int, AurSpecies>();
         public Dictionary<int, AurSystem> sysIdx = new Dictionary<int, AurSystem>();
         public Dictionary<int, AurBody> bodyIdx = new Dictionary<int, AurBody>();
         public Dictionary<int, AurPop> popIdx = new Dictionary<int, AurPop>();
@@ -320,13 +346,17 @@ namespace AuroraDashboard {
             var cmd = new SqliteCommand("SELECT * FROM DIM_PlanetaryInstallation;", con);
             SqliteDataReader instReader = cmd.ExecuteReader();
 
+            for(int i = 0;i < IDToInst.Length; i++) {
+                IDToInst[i] = (int)InstallationType.Other;
+            }
+
             while (instReader.Read()) {
                 int ID = instReader.GetInt32(getCol(instReader, "PlanetaryInstallationID"));
 
                 switch (instReader.GetString(getCol(instReader, "Name"))) {
                 case "Construction Factory":
-                    instToID[(int)InstallationType.CFactory] = ID;
-                    IDToInst[ID] = (int)InstallationType.CFactory;
+                    instToID[(int)InstallationType.ConstructionFactory] = ID;
+                    IDToInst[ID] = (int)InstallationType.ConstructionFactory;
                     break;
                 case "Fuel Refinery":
                     instToID[(int)InstallationType.Refinery] = ID;
@@ -341,48 +371,48 @@ namespace AuroraDashboard {
                     IDToInst[ID] = (int)InstallationType.AutoMine;
                     break;
                 case "Ordnance Factory":
-                    instToID[(int)InstallationType.OFactory] = ID;
-                    IDToInst[ID] = (int)InstallationType.OFactory;
+                    instToID[(int)InstallationType.OrdnanceFactory] = ID;
+                    IDToInst[ID] = (int)InstallationType.OrdnanceFactory;
                     break;
                 case "Fighter Factory":
-                    instToID[(int)InstallationType.FFactory] = ID;
-                    IDToInst[ID] = (int)InstallationType.FFactory;
+                    instToID[(int)InstallationType.FighterFactory] = ID;
+                    IDToInst[ID] = (int)InstallationType.FighterFactory;
                     break;
                 case "Deep Space Tracking Station":
                     instToID[(int)InstallationType.DSTS] = ID;
                     IDToInst[ID] = (int)InstallationType.DSTS;
                     break;
                 case "Mass Driver":
-                    instToID[(int)InstallationType.MDriver] = ID;
-                    IDToInst[ID] = (int)InstallationType.MDriver;
+                    instToID[(int)InstallationType.MassDriver] = ID;
+                    IDToInst[ID] = (int)InstallationType.MassDriver;
                     break;
                 case "Research Facility":
-                    instToID[(int)InstallationType.Research] = ID;
-                    IDToInst[ID] = (int)InstallationType.Research;
+                    instToID[(int)InstallationType.ResearchFacility] = ID;
+                    IDToInst[ID] = (int)InstallationType.ResearchFacility;
                     break;
                 case "Infrastructure":
-                    instToID[(int)InstallationType.Infr] = ID;
-                    IDToInst[ID] = (int)InstallationType.Infr;
+                    instToID[(int)InstallationType.Infrastructure] = ID;
+                    IDToInst[ID] = (int)InstallationType.Infrastructure;
                     break;
                 case "Low Gravity Infrastructure":
-                    instToID[(int)InstallationType.InfrLG] = ID;
-                    IDToInst[ID] = (int)InstallationType.InfrLG;
+                    instToID[(int)InstallationType.InfrastructureLG] = ID;
+                    IDToInst[ID] = (int)InstallationType.InfrastructureLG;
                     break;
                 case "Terraforming Installation":
-                    instToID[(int)InstallationType.Terraformer] = ID;
-                    IDToInst[ID] = (int)InstallationType.Terraformer;
+                    instToID[(int)InstallationType.TerraforingInstallation] = ID;
+                    IDToInst[ID] = (int)InstallationType.TerraforingInstallation;
                     break;
                 case "Maintenance Facility":
-                    instToID[(int)InstallationType.Maint] = ID;
-                    IDToInst[ID] = (int)InstallationType.Maint;
+                    instToID[(int)InstallationType.MaintenanceFacility] = ID;
+                    IDToInst[ID] = (int)InstallationType.MaintenanceFacility;
                     break;
                 case "Financial Centre":
-                    instToID[(int)InstallationType.FinCenter] = ID;
-                    IDToInst[ID] = (int)InstallationType.FinCenter;
+                    instToID[(int)InstallationType.FinancialCenter] = ID;
+                    IDToInst[ID] = (int)InstallationType.FinancialCenter;
                     break;
                 case "Civilian Mining Complex":
-                    instToID[(int)InstallationType.CivMine] = ID;
-                    IDToInst[ID] = (int)InstallationType.CivMine;
+                    instToID[(int)InstallationType.CivilianMine] = ID;
+                    IDToInst[ID] = (int)InstallationType.CivilianMine;
                     break;
                 }
             }
@@ -489,6 +519,19 @@ namespace AuroraDashboard {
 
                     game.raceIdx.Add(race.ID, race);
                     game.Races.Add(race);
+                }
+
+                cmd = new SqliteCommand("SELECT * FROM FCT_Species WHERE" + GameCl + ";", con);
+                reader = cmd.ExecuteReader();
+
+                while (reader.Read()) {
+                    var species = new AurSpecies();
+
+                    species.ID = reader.GetInt32(getCol(reader, "SpeciesID"));
+                    species.name = reader.GetString(getCol(reader, "SpeciesName"));
+
+                    game.speciesIdx.Add(species.ID, species);
+                    game.Species.Add(species);
                 }
 
                 progress.Report(new PrgMsg("Loaded races.", prgBase + 0.05f * prgMult));
@@ -606,14 +649,23 @@ namespace AuroraDashboard {
                     pop.name = reader.GetString(getCol(reader, "PopName"));
                     pop.race = game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))];
                     pop.race.populations.Add(pop);
+                    pop.species = game.speciesIdx[reader.GetInt32(getCol(reader, "SpeciesID"))];
+                    pop.population = reader.GetDouble(getCol(reader, "Population"));
+                    pop.race.populationSum += pop.population;
                     pop.body = game.bodyIdx[reader.GetInt32(getCol(reader, "SystemBodyID"))];
                     pop.body.populations.Add(pop.race, pop);
 
                     LoadMineralByNamedCols(pop.minerals, reader);
 
-                    for (int i = 0; i <= (int)MineralType.Gallicite; i++) {
+                    for (int i = 0; i < Enum.GetValues(typeof(MineralType)).Length; i++) {
                         pop.race.minerals[i] += pop.minerals[i];
                     }
+
+                    pop.fuel = reader.GetDouble(getCol(reader, "FuelStockpile"));
+                    pop.race.popFuelSum += pop.fuel;
+
+                    pop.msp = reader.GetDouble(getCol(reader, "MaintenanceStockpile"));
+                    pop.race.popMSPSum += pop.msp;
 
                     cmd = new SqliteCommand("SELECT * FROM FCT_PopulationInstallations WHERE" + GameCl + " AND PopID = " + pop.ID + ";", con);
                     var instReader = cmd.ExecuteReader();
@@ -621,6 +673,12 @@ namespace AuroraDashboard {
                     while (instReader.Read()) {
                         pop.installations[IDToInst[instReader.GetInt32(getCol(instReader, "PlanetaryInstallationID"))]] = instReader.GetFloat(getCol(instReader, "Amount"));
                     }
+
+                    for (int i = 0; i < pop.installations.Length; i++) {
+                        pop.race.installations[i] += pop.installations[i];
+                    }
+
+                    //pop.fuelProd = reader.GetInt32(getCol(reader, "FuelProdStatus")) == 1 ? pop.installations[InstallationType.Refinery] : 0;
 
                     if (reader.GetInt32(getCol(reader, "Capital")) == 1) {
                         pop.race.capital = pop;
@@ -711,7 +769,7 @@ namespace AuroraDashboard {
                     cls.cost = reader.GetDouble(getCol(reader, "Cost"));
                     cls.armor = reader.GetInt32(getCol(reader, "ArmourThickness"));
                     cls.crew = reader.GetInt32(getCol(reader, "Crew"));
-                    cls.supplies = reader.GetDouble(getCol(reader, "MaintSupplies"));
+                    cls.msp = reader.GetDouble(getCol(reader, "MaintSupplies"));
                     cls.fuel = reader.GetDouble(getCol(reader, "FuelCapacity"));
                     cls.fuelEff = reader.GetDouble(getCol(reader, "FuelEfficiency"));
                     cls.maxSpeed = reader.GetDouble(getCol(reader, "MaxSpeed"));
@@ -792,7 +850,17 @@ namespace AuroraDashboard {
                     ship.fuel = reader.GetDouble(getCol(reader, "Fuel"));
                     ship.grade = reader.GetDouble(getCol(reader, "GradePoints"));
                     ship.overhaulTime = reader.GetDouble(getCol(reader, "LastOverhaul"));
-                    ship.supplies = reader.GetDouble(getCol(reader, "CurrentMaintSupplies"));
+                    ship.msp = reader.GetDouble(getCol(reader, "CurrentMaintSupplies"));
+
+                    ship.race.shipFuelSum += ship.fuel;
+                    ship.race.shipFuelCapSum += ship.shipClass.fuel;
+
+                    if (ship.shipClass.isMilitary) {
+                        ship.race.shipMSPAnnualCost += ship.shipClass.cost / 4;
+                    }
+
+                    ship.race.shipMSPSum += ship.msp;
+                    ship.race.shipMSPCapSum += ship.shipClass.msp;
 
                     ship.race.ships.Add(ship);
                     game.shipIdx.Add(ship.ID, ship);

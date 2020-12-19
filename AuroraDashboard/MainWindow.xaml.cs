@@ -129,6 +129,7 @@ namespace AuroraDashboard {
             OnPriceChanged();
         }
 
+        public SeriesCollection piePopulationSeries = new SeriesCollection();
         public SeriesCollection pieStockpilesSeries = new SeriesCollection();
         public SeriesCollection pieMiningSeries = new SeriesCollection();
         public GridView prospectGrid;
@@ -177,6 +178,7 @@ namespace AuroraDashboard {
             cmbProspectFor.Items.Add("Amount");
             cmbProspectFor.SelectedIndex = 1;
 
+            piePopulation.Series = piePopulationSeries;
             pieStockpiles.Series = pieStockpilesSeries;
             pieMining.Series = pieMiningSeries;
 
@@ -284,6 +286,8 @@ namespace AuroraDashboard {
             UpdateProspect();
 
             PopulateWeaponList();
+
+            PopulatePopSummary();
         }
 
         void PopulateMineralTab() {
@@ -596,6 +600,144 @@ namespace AuroraDashboard {
             chrtProspect.Update();
         }
 
+        void PopulatePopSummary() {
+            RecalculatePopPie();
+
+            RecalculatePopSummaryText();
+        }
+
+        public class EmpireSummaryEntry {
+            public string Description { get; set; }
+            public string Value { get; set; }
+            public string Category { get; set; }
+        }
+
+        void RecalculatePopSummaryText() {
+            List<EmpireSummaryEntry> EmpireSummaryList = new List<EmpireSummaryEntry>();
+
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Overall population",
+                Value = curRace.populationSum.ToString("N0") + "M",
+                Category = "Population"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Number of populated colonies",
+                Value = (from pop in curRace.populations where pop.population > 0 select pop).Count().ToString("N0"),
+                Category = "Population"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Number of colonies",
+                Value = curRace.populations.Count.ToString("N0"),
+                Category = "Population"
+            });
+
+            for(int i = 0;i < curRace.installations.Length; i++) {
+                EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                    Description = Enum.GetName(typeof(InstallationType), i),
+                    Value = curRace.installations[i].ToString("N0"),
+                    Category = "Installations"
+                });
+            }
+
+           /* EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Annual Fuel production",
+                Value = curRace.shipFuelCapSum.ToString("N0"),
+                Category = "Fuel"
+            });*/
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Fuel at populations",
+                Value = curRace.popFuelSum.ToString("N0"),
+                Category = "Fuel"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Fuel on ships",
+                Value = curRace.shipFuelSum.ToString("N0"),
+                Category = "Fuel"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Ship fuel capacity",
+                Value = curRace.shipFuelCapSum.ToString("N0"),
+                Category = "Fuel"
+            });
+
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Ship MSP annual cost",
+                Value = curRace.shipMSPAnnualCost.ToString("N0"),
+                Category = "Maintenance"
+            });
+            /*EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Annual MSP production",
+                Value = curRace.shipFuelCapSum.ToString("N0"),
+                Category = "Maintenance"
+            });*/
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "MSP at populations",
+                Value = curRace.popMSPSum.ToString("N0"),
+                Category = "Maintenance"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "MSP on ships",
+                Value = curRace.shipMSPSum.ToString("N0"),
+                Category = "Maintenance"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Ship MSP capacity",
+                Value = curRace.shipMSPCapSum.ToString("N0"),
+                Category = "Maintenance"
+            });
+
+            ListCollectionView collectionView = new ListCollectionView(EmpireSummaryList);
+            collectionView.GroupDescriptions.Add(new PropertyGroupDescription("Category"));
+
+            dgEmpireSummary.ItemsSource = collectionView;
+            dgEmpireSummary.Columns[0].Width = 250;
+            dgEmpireSummary.Columns[1].Width = 150;
+        }
+
+        void RecalculatePopPie() {
+            piePopulation.UpdaterState = UpdaterState.Paused;
+            piePopulationSeries.Clear();
+
+            Dictionary<AurSpecies, double> speciesPop = new Dictionary<AurSpecies, double>();
+
+            foreach (AurPop pop in curRace.populations) {
+                if (!speciesPop.ContainsKey(pop.species)) {
+                    speciesPop.Add(pop.species, pop.population);
+                } else {
+                    speciesPop[pop.species] += pop.population;
+                }
+            }
+
+            foreach(AurSpecies species in (from spec in speciesPop.Keys orderby speciesPop[spec] descending select spec)) {
+                bool speciesPieAdded = false;
+                foreach (AurPop pop in (from pop in curRace.populations where pop.population > 0 && pop.species == species orderby pop.population descending select pop)) {
+                    PieSeries pieSeries = new PieSeries();
+                    piePopulationSeries.Add(pieSeries);
+
+                    ChartValues<double> popVal = new ChartValues<double>();
+
+                    if (!speciesPieAdded) {
+                        popVal.Add(speciesPop[species]);
+                        speciesPieAdded = true;
+                    } else {
+                        popVal.Add(0);
+                    }
+
+                    popVal.Add(pop.population);
+
+                    pieSeries.Title = "";
+                    pieSeries.Values = popVal;
+                    pieSeries.LabelPoint = (chartPoint) => { 
+                        return chartPoint.X == 0 ? (species.name + ": " + speciesPop[species].ToString("N0") + "M") : pop.name + ": " + pop.population.ToString("N0") + "M"; 
+                    };
+                    pieSeries.DataLabels = pop.population / speciesPop[species] > 0.07;
+                }
+            }
+
+            piePopulation.UpdaterState = UpdaterState.Running;
+            piePopulation.Update();
+        }
+
         void RecalculateStockpilePie() {
             pieStockpiles.UpdaterState = UpdaterState.Paused;
 
@@ -650,7 +792,7 @@ namespace AuroraDashboard {
                 return name + " (" + mineValue.ToString("N1") + ")\n" +
                     inst[(int)InstallationType.Mine].ToString("N1") + "M " +
                     inst[(int)InstallationType.AutoMine].ToString("N1") + "AM " +
-                    inst[(int)InstallationType.CivMine].ToString("N1") + "CIVM " +
+                    inst[(int)InstallationType.CivilianMine].ToString("N1") + "CIVM " +
                     omCnt.ToString() + "OM";
             };
             pieSeries.DataLabels = mineValue / highestValue > 0.33;
@@ -676,7 +818,7 @@ namespace AuroraDashboard {
                     }
                 }
 
-                double civVal = chkMineIncludeCiv.IsChecked == true ? pop.installations[(int)InstallationType.CivMine] * 10 : 0;
+                double civVal = chkMineIncludeCiv.IsChecked == true ? pop.installations[(int)InstallationType.CivilianMine] * 10 : 0;
                 return civVal + pop.installations[(int)InstallationType.Mine] + pop.installations[(int)InstallationType.AutoMine] + omModuleCnt;
             }
 
@@ -823,8 +965,7 @@ namespace AuroraDashboard {
         }
 
         private void txtProspectLimit_TextChanged(object sender, TextChangedEventArgs e) {
-            double val;
-            if (double.TryParse(txtProspectLimit.Text, out val)) {
+            if (double.TryParse(txtProspectLimit.Text, out double val)) {
                 if (cmbProspectFor.SelectedIndex == 0) {
                     prospectMinAmount = val;
                 } else {
@@ -838,8 +979,7 @@ namespace AuroraDashboard {
         }
 
         private void txtWeapFCRange_TextChanged(object sender, TextChangedEventArgs e) {
-            double val;
-            if (double.TryParse(txtWeapFCRange.Text, out val) && val > 0) {
+            if (double.TryParse(txtWeapFCRange.Text, out double val) && val > 0) {
                 weaponFCRange = val;
             }
 
@@ -934,6 +1074,8 @@ namespace AuroraDashboard {
 
         private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e) {
             if (e.Source is TabControl) {
+                piePopulation.UpdaterState = tabPopulations.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
+
                 pieStockpiles.UpdaterState = tabMinerals.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
                 pieMining.UpdaterState = tabMinerals.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
                 chrtMineralPrice.UpdaterState = tabMinerals.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
@@ -944,6 +1086,10 @@ namespace AuroraDashboard {
 
                 chrtWeapons.UpdaterState = tabWeapons.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
             }
+        }
+
+        private void CollectionViewSource_Filter(object sender, FilterEventArgs e) {
+
         }
     }
 }

@@ -4,9 +4,26 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
+        xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
         xmlns:local="clr-namespace:AuroraDashboard"
         mc:Ignorable="d"
         Title="MainWindow" Height="1080" Width="1920">
+    <Window.Resources>
+        <Style x:Key="empireSummaryCategoryStyle" TargetType="GroupItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GroupItem">
+                        <Expander IsExpanded="True">
+                            <Expander.Header>
+                                <TextBlock Text="{Binding Name}"/>
+                            </Expander.Header>
+                            <ItemsPresenter/>
+                        </Expander>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="0*"/>
@@ -22,8 +39,21 @@
             <ComboBoxItem Content="Usefulness"/>
         </ComboBox>
         <TabControl HorizontalAlignment="Left" Height="976" Margin="10,37,0,0" Grid.RowSpan="2" VerticalAlignment="Top" Width="1889" SelectionChanged="TabControl_SelectionChanged">
-            <TabItem x:Name="tabSummary" Header="Summary">
-                <Grid Background="#FFE5E5E5"/>
+            <TabItem x:Name="tabPopulations" Header="Populations">
+                <Grid Background="#FFE5E5E5">
+                    <lvc:PieChart x:Name="piePopulation" Margin="1336,10,10,401" DisableAnimations="True" TooltipTimeout="0" UpdaterState="Paused"/>
+                    <DataGrid x:Name="dgEmpireSummary" HorizontalAlignment="Left" Height="928" Margin="10,10,0,0" VerticalAlignment="Top" Width="676">
+                        <DataGrid.GroupStyle>
+                            <GroupStyle ContainerStyle="{StaticResource empireSummaryCategoryStyle}">
+                                <GroupStyle.Panel>
+                                    <ItemsPanelTemplate>
+                                        <DataGridRowsPresenter/>
+                                    </ItemsPanelTemplate>
+                                </GroupStyle.Panel>
+                            </GroupStyle>
+                        </DataGrid.GroupStyle>
+                    </DataGrid> 
+                </Grid>
             </TabItem>
             <TabItem x:Name="tabMinerals" Header="Empire Minerals" Margin="0,0,0,0">
                 <Grid Background="#FFE5E5E5">
