@@ -616,8 +616,8 @@ namespace AuroraDashboard {
             List<EmpireSummaryEntry> EmpireSummaryList = new List<EmpireSummaryEntry>();
 
             EmpireSummaryList.Add(new EmpireSummaryEntry() {
-                Description = "Overall population",
-                Value = curRace.populationSum.ToString("N0") + "M",
+                Description = "Overall population (M)",
+                Value = curRace.populationSum.ToString("N0"),
                 Category = "Population"
             });
             EmpireSummaryList.Add(new EmpireSummaryEntry() {
@@ -639,37 +639,68 @@ namespace AuroraDashboard {
                 });
             }
 
-           /* EmpireSummaryList.Add(new EmpireSummaryEntry() {
-                Description = "Annual Fuel production",
-                Value = curRace.shipFuelCapSum.ToString("N0"),
-                Category = "Fuel"
-            });*/
+            double orbitalFuelProd = 0;
+            foreach (AurFleet fleet in curRace.fleets) {
+                if (fleet.orbitBody != null && fleet.orbitBody.minerals[(int)MineralType.Sorium] > 0) {
+                    int harvesters = 0;
+                    foreach (AurShip ship in fleet.ships) {
+                        harvesters += ship.shipClass.fuelHarvestingModules;
+                    }
+
+                    orbitalFuelProd += harvesters * curRace.prodFuel * fleet.orbitBody.mineralsAcc[(int)MineralType.Sorium];
+                }
+            }
+
+            double planetFuelProd = 0;
+            foreach(AurPop pop in curRace.populations) {
+                if (pop.fuelProdEnabled) {
+                    planetFuelProd += pop.installations[(int)InstallationType.Refinery] * curRace.prodFuel * pop.prodEfficiency;
+                }
+            }
+
             EmpireSummaryList.Add(new EmpireSummaryEntry() {
-                Description = "Fuel at populations",
+                Description = "Fuel production (L/year)",
+                Value = (planetFuelProd + orbitalFuelProd).ToString("N0"),
+                Category = "Fuel"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Fuel production (orbital) (L/year)",
+                Value = (orbitalFuelProd).ToString("N0"),
+                Category = "Fuel"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Fuel at populations (L)",
                 Value = curRace.popFuelSum.ToString("N0"),
                 Category = "Fuel"
             });
             EmpireSummaryList.Add(new EmpireSummaryEntry() {
-                Description = "Fuel on ships",
+                Description = "Fuel on ships (L)",
                 Value = curRace.shipFuelSum.ToString("N0"),
                 Category = "Fuel"
             });
             EmpireSummaryList.Add(new EmpireSummaryEntry() {
-                Description = "Ship fuel capacity",
+                Description = "Ship fuel capacity (L)",
                 Value = curRace.shipFuelCapSum.ToString("N0"),
                 Category = "Fuel"
             });
+
+            double planetMSPProd = 0;
+            foreach (AurPop pop in curRace.populations) {
+                if (pop.fuelProdEnabled) {
+                    planetMSPProd += pop.installations[(int)InstallationType.MaintenanceFacility] * curRace.prodMSP * 4 * pop.prodEfficiency;
+                }
+            }
 
             EmpireSummaryList.Add(new EmpireSummaryEntry() {
                 Description = "Ship MSP annual cost",
                 Value = curRace.shipMSPAnnualCost.ToString("N0"),
                 Category = "Maintenance"
             });
-            /*EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
                 Description = "Annual MSP production",
-                Value = curRace.shipFuelCapSum.ToString("N0"),
+                Value = planetMSPProd.ToString("N0"),
                 Category = "Maintenance"
-            });*/
+            });
             EmpireSummaryList.Add(new EmpireSummaryEntry() {
                 Description = "MSP at populations",
                 Value = curRace.popMSPSum.ToString("N0"),
@@ -686,12 +717,87 @@ namespace AuroraDashboard {
                 Category = "Maintenance"
             });
 
+            double cargoCap = 0;
+            double cargoThroughput = 0;
+            double cargoThroughputNonciv = 0;
+            double colonistCap = 0;
+            double colonistThroughput = 0;
+            double colonistThroughputNonciv = 0;
+            double tankerCap = 0;
+            double tankerThroughput = 0;
+            foreach (AurShip ship in curRace.ships) {
+                if (ship.shipClass.cargoCapacity > 0) {
+                    cargoCap += ship.shipClass.cargoCapacity;
+                    cargoThroughput += ship.shipClass.cargoCapacity * ship.shipClass.maxSpeed;
+
+                    if (!ship.isCivilian) {
+                        cargoThroughputNonciv += ship.shipClass.cargoCapacity * ship.shipClass.maxSpeed;
+                    }
+                }
+
+                if (!ship.shipClass.isMilitary && ship.shipClass.colonistCapacity > 0) {
+                    colonistCap += ship.shipClass.colonistCapacity;
+                    colonistThroughput += ship.shipClass.colonistCapacity * ship.shipClass.maxSpeed;
+
+                    if (!ship.isCivilian) {
+                        colonistThroughputNonciv += ship.shipClass.colonistCapacity * ship.shipClass.maxSpeed;
+                    }
+                }
+
+                if (ship.shipClass.isTanker) {
+                    tankerCap += ship.shipClass.fuel;
+                    tankerThroughput += ship.shipClass.fuel * ship.shipClass.maxSpeed;
+                }
+            }
+
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Cargo ship capacity (CargoUnits)",
+                Value = cargoCap.ToString("N0"),
+                Category = "Logistics"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Colonist ship capacity (Colonists)",
+                Value = colonistCap.ToString("N0"),
+                Category = "Logistics"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Tanker ship capacity (L)",
+                Value = tankerCap.ToString("N0"),
+                Category = "Logistics"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Cargo ship throughput (CargoUnits * km/s)",
+                Value = cargoThroughput.ToString("N0"),
+                Category = "Logistics"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Cargo ship throughput (CargoUnits * km/s) (Non-civilian)",
+                Value = cargoThroughputNonciv.ToString("N0"),
+                Category = "Logistics"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Colonist ship throughput (Colonists * km/s)",
+                Value = colonistThroughput.ToString("N0"),
+                Category = "Logistics"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Colonist ship throughput (Colonists * km/s) (Non-civilian)",
+                Value = colonistThroughputNonciv.ToString("N0"),
+                Category = "Logistics"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Tanker ship throughput (L * km/s)",
+                Value = tankerThroughput.ToString("N0"),
+                Category = "Logistics"
+            });
+
             ListCollectionView collectionView = new ListCollectionView(EmpireSummaryList);
             collectionView.GroupDescriptions.Add(new PropertyGroupDescription("Category"));
 
             dgEmpireSummary.ItemsSource = collectionView;
-            dgEmpireSummary.Columns[0].Width = 250;
+            dgEmpireSummary.Columns[0].Width = 350;
             dgEmpireSummary.Columns[1].Width = 150;
+            dgEmpireSummary.Columns[1].CellStyle = Resources["numberCellStyle"] as Style;
         }
 
         void RecalculatePopPie() {
@@ -866,7 +972,7 @@ namespace AuroraDashboard {
             for (int i = 0; i < othersMiningProdSum.Length; i++) {
                 seriesIdx = 0;
                 foreach (AurPop pop in (from pop in miningPops orderby mineValueFunc(pop) * pop.body.mineralsAcc[i] descending select pop)) {
-                    double mineralProdValue = mineValueFunc(pop) * pop.body.mineralsAcc[i];
+                    double mineralProdValue = mineValueFunc(pop) * pop.body.mineralsAcc[i] * curRace.prodMine;
 
                     if (seriesIdx < chrtMiningLimit) {
                         StackedColumnSeries columnSeries;

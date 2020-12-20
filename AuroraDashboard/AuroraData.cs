@@ -111,11 +111,18 @@ namespace AuroraDashboard {
         public double fuelEff;
         public double maxSpeed;
         public double ppv;
+        public double cargoCapacity;
+        public double colonistCapacity;
         public int armor;
         public int crew;
         public int miningModules;
+        public int fuelHarvestingModules;
         public bool isMilitary;
+        public bool isCivilian;
         public bool isObsolete;
+        public bool isTanker;
+        public bool isCollier;
+        public bool isSupplyShip;
         public AurHull hull;
         public Dictionary<ComponentType, List<Comp>> components = new Dictionary<ComponentType, List<Comp>>();
 
@@ -134,6 +141,7 @@ namespace AuroraDashboard {
         public double grade;
         public double msp;
         public double overhaulTime;
+        public bool isCivilian;
 
         public AurRace race;
         public AurFleet fleet;
@@ -163,9 +171,10 @@ namespace AuroraDashboard {
         public AurSpecies species;
         public double population;
         public double fuel;
-        public double fuelProd;
+        public bool fuelProdEnabled;
         public double msp;
-        public double mspProd;
+        public bool mspProdEnabled;
+        public double prodEfficiency;
 
         public double[] installations = new double[Enum.GetValues(typeof(InstallationType)).Length];
         public double[] minerals = new double[Enum.GetValues(typeof(MineralType)).Length];
@@ -247,6 +256,16 @@ namespace AuroraDashboard {
 
         public int ID;
         public string name;
+        public double crewmen;
+
+        public double capMaintenance;
+        public double prodFuel;
+        public double prodMSP;
+        public double prodConstruction;
+        public double prodOrdnance;
+        public double prodFighter;
+        public double prodMine;
+
 
         public double[] minerals = new double[Enum.GetValues(typeof(MineralType)).Length];
         public double[] installations = new double[Enum.GetValues(typeof(InstallationType)).Length];
@@ -516,6 +535,15 @@ namespace AuroraDashboard {
 
                     race.ID = reader.GetInt32(getCol(reader, "RaceID"));
                     race.name = reader.GetString(getCol(reader, "RaceName"));
+                    race.crewmen = reader.GetDouble(getCol(reader, "AcademyCrewmen"));
+                    
+                    race.capMaintenance = reader.GetDouble(getCol(reader, "MaintenanceCapacity"));
+                    race.prodConstruction = reader.GetDouble(getCol(reader, "ConstructionProduction"));
+                    race.prodMSP = reader.GetDouble(getCol(reader, "MSPProduction"));
+                    race.prodFuel = reader.GetDouble(getCol(reader, "FuelProduction"));
+                    race.prodOrdnance = reader.GetDouble(getCol(reader, "OrdnanceProduction"));
+                    race.prodMine = reader.GetDouble(getCol(reader, "MineProduction"));
+                    race.prodFighter = reader.GetDouble(getCol(reader, "FighterProduction"));
 
                     game.raceIdx.Add(race.ID, race);
                     game.Races.Add(race);
@@ -678,7 +706,9 @@ namespace AuroraDashboard {
                         pop.race.installations[i] += pop.installations[i];
                     }
 
-                    //pop.fuelProd = reader.GetInt32(getCol(reader, "FuelProdStatus")) == 1 ? pop.installations[InstallationType.Refinery] : 0;
+                    pop.fuelProdEnabled = reader.GetInt32(getCol(reader, "FuelProdStatus")) == 1;
+                    pop.mspProdEnabled = reader.GetInt32(getCol(reader, "MaintProdStatus")) == 1;
+                    pop.prodEfficiency = reader.GetDouble(getCol(reader, "Efficiency"));
 
                     if (reader.GetInt32(getCol(reader, "Capital")) == 1) {
                         pop.race.capital = pop;
@@ -774,10 +804,17 @@ namespace AuroraDashboard {
                     cls.fuelEff = reader.GetDouble(getCol(reader, "FuelEfficiency"));
                     cls.maxSpeed = reader.GetDouble(getCol(reader, "MaxSpeed"));
                     cls.ppv = reader.GetDouble(getCol(reader, "ProtectionValue"));
-                    cls.isMilitary = reader.GetInt32(getCol(reader, "Commercial")) != 0;
+                    cls.cargoCapacity = reader.GetDouble(getCol(reader, "CargoCapacity"));
+                    cls.colonistCapacity = reader.GetDouble(getCol(reader, "ColonistCapacity"));
+                    cls.isMilitary = reader.GetInt32(getCol(reader, "Commercial")) == 0;
+                    cls.isCivilian = reader.GetInt32(getCol(reader, "ClassShippingLineID")) != 0;
                     cls.isObsolete = reader.GetInt32(getCol(reader, "Obsolete")) != 0;
                     cls.hull = ret.hullIdx[reader.GetInt32(getCol(reader, "HullDescriptionID"))];
                     cls.miningModules = reader.GetInt32(getCol(reader, "MiningModules"));
+                    cls.fuelHarvestingModules = reader.GetInt32(getCol(reader, "Harvesters"));
+                    cls.isTanker = reader.GetInt32(getCol(reader, "FuelTanker")) != 0;
+                    cls.isCollier = reader.GetInt32(getCol(reader, "Collier")) != 0;
+                    cls.isSupplyShip = reader.GetInt32(getCol(reader, "SupplyShip")) != 0;
 
                     game.classIdx.Add(cls.ID, cls);
                     game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))].classes.Add(cls);
@@ -851,6 +888,7 @@ namespace AuroraDashboard {
                     ship.grade = reader.GetDouble(getCol(reader, "GradePoints"));
                     ship.overhaulTime = reader.GetDouble(getCol(reader, "LastOverhaul"));
                     ship.msp = reader.GetDouble(getCol(reader, "CurrentMaintSupplies"));
+                    ship.isCivilian = reader.GetInt32(getCol(reader, "ShippingLineID")) != 0;
 
                     ship.race.shipFuelSum += ship.fuel;
                     ship.race.shipFuelCapSum += ship.shipClass.fuel;
