@@ -82,6 +82,7 @@ namespace AuroraDashboard {
         AurRace curRace;
 
         public double[] mineralPrices = new double[Enum.GetValues(typeof(MineralType)).Length];
+        public double[] mineralProduction = new double[Enum.GetValues(typeof(MineralType)).Length];
 
         public double GetCombinedMineralPrice(double[] minerals) {
             double ret = 0;
@@ -115,15 +116,25 @@ namespace AuroraDashboard {
                 break;
             }
 
+            double projectionYears;
+            if(!double.TryParse(txtPriceProj.Text, out projectionYears)) {
+                projectionYears = 5.0;
+            }
+
+            double[] mineralProjection = new double[curRace.minerals.Length];
+            for (int i = 0; i < curRace.minerals.Length; i++) {
+                mineralProjection[i] = curRace.minerals[i] + mineralProduction[i] * projectionYears;
+            }
+
             double mineralSum = 0;
             for (int i = 0; i < curRace.minerals.Length; i++) {
-                mineralSum += curRace.minerals[i] / priceMod.priceMult[i];
+                mineralSum += mineralProjection[i] / priceMod.priceMult[i];
             }
 
             double avgMineralAmt = mineralSum / curRace.minerals.Length;
 
             for (int i = 0; i < curRace.minerals.Length; i++) {
-                mineralPrices[i] = avgMineralAmt / (curRace.minerals[i] / priceMod.priceMult[i]);
+                mineralPrices[i] = avgMineralAmt / (mineralProjection[i] / priceMod.priceMult[i]);
             }
 
             OnPriceChanged();
@@ -278,24 +289,20 @@ namespace AuroraDashboard {
 
         void OnRaceSelected() {
             MineralPriceMod priceMod = MineralPriceMod.noMod;
-            
+
+            // Also calculates data for production amounts that figures in price
+            RecalculateMiningCharts();
+
             CalcMineralPrice();
 
-            PopulateMineralTab();
+            RecalculateStockpilePie();
+            chrtMineralStockpile.Series[0].Values = new ChartValues<double>(curRace.minerals);
 
             UpdateProspect();
 
             PopulateWeaponList();
 
             PopulatePopSummary();
-        }
-
-        void PopulateMineralTab() {
-            RecalculateStockpilePie();
-
-            RecalculateMiningCharts();
-
-            chrtMineralStockpile.Series[0].Values = new ChartValues<double>(curRace.minerals);
         }
 
         void PopulateWeaponList() {
@@ -686,13 +693,13 @@ namespace AuroraDashboard {
 
             double planetMSPProd = 0;
             foreach (AurPop pop in curRace.populations) {
-                if (pop.fuelProdEnabled) {
+                if (pop.mspProdEnabled) {
                     planetMSPProd += pop.installations[(int)InstallationType.MaintenanceFacility] * curRace.prodMSP * 4 * pop.prodEfficiency;
                 }
             }
 
             EmpireSummaryList.Add(new EmpireSummaryEntry() {
-                Description = "Ship MSP annual cost",
+                Description = " Annual ship MSP cost",
                 Value = curRace.shipMSPAnnualCost.ToString("N0"),
                 Category = "Maintenance"
             });
@@ -717,6 +724,8 @@ namespace AuroraDashboard {
                 Category = "Maintenance"
             });
 
+            double milTonSum = 0, milShipTonSum = 0, comTonSum = 0, comShipTonSum = 0, civTonSum = 0;
+
             double cargoCap = 0;
             double cargoThroughput = 0;
             double cargoThroughputNonciv = 0;
@@ -726,6 +735,21 @@ namespace AuroraDashboard {
             double tankerCap = 0;
             double tankerThroughput = 0;
             foreach (AurShip ship in curRace.ships) {
+                if (ship.isCivilian) {
+                    civTonSum += ship.shipClass.tonnage;
+                } else if (ship.shipClass.isMilitary) {
+                    milTonSum += ship.shipClass.tonnage;
+                    if(ship.shipClass.maxSpeed > 1) {
+                        milShipTonSum += ship.shipClass.tonnage;
+                    }
+                } else {
+                    comTonSum += ship.shipClass.tonnage;
+
+                    if (ship.shipClass.maxSpeed > 1) {
+                        comShipTonSum += ship.shipClass.tonnage;
+                    }
+                }
+
                 if (ship.shipClass.cargoCapacity > 0) {
                     cargoCap += ship.shipClass.cargoCapacity;
                     cargoThroughput += ship.shipClass.cargoCapacity * ship.shipClass.maxSpeed;
@@ -789,6 +813,32 @@ namespace AuroraDashboard {
                 Description = "Tanker ship throughput (L * km/s)",
                 Value = tankerThroughput.ToString("N0"),
                 Category = "Logistics"
+            });
+
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Military Tonnage",
+                Value = milTonSum.ToString("N0"),
+                Category = "Fleets"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Military Tonnage (Ships)",
+                Value = milShipTonSum.ToString("N0"),
+                Category = "Fleets"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Commercial Tonnage",
+                Value = comTonSum.ToString("N0"),
+                Category = "Fleets"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Commercial Tonnage (Ships)",
+                Value = comShipTonSum.ToString("N0"),
+                Category = "Fleets"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+                Description = "Civilian Tonnage",
+                Value = civTonSum.ToString("N0"),
+                Category = "Fleets"
             });
 
             ListCollectionView collectionView = new ListCollectionView(EmpireSummaryList);
@@ -970,9 +1020,13 @@ namespace AuroraDashboard {
             double[] othersMiningProdSum = new double[Enum.GetValues(typeof(MineralType)).Length];
             Dictionary<AurPop, StackedColumnSeries> stackedSeries = new Dictionary<AurPop, StackedColumnSeries>();
             for (int i = 0; i < othersMiningProdSum.Length; i++) {
+                mineralProduction[i] = 0.0;
+
                 seriesIdx = 0;
                 foreach (AurPop pop in (from pop in miningPops orderby mineValueFunc(pop) * pop.body.mineralsAcc[i] descending select pop)) {
                     double mineralProdValue = mineValueFunc(pop) * pop.body.mineralsAcc[i] * curRace.prodMine;
+
+                    mineralProduction[i] += mineralProdValue;
 
                     if (seriesIdx < chrtMiningLimit) {
                         StackedColumnSeries columnSeries;
@@ -1196,6 +1250,10 @@ namespace AuroraDashboard {
 
         private void CollectionViewSource_Filter(object sender, FilterEventArgs e) {
 
+        }
+
+        private void txtPriceProj_TextChanged(object sender, TextChangedEventArgs e) {
+            //CalcMineralPrice();
         }
     }
 }

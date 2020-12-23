@@ -55,7 +55,7 @@
                                 </GroupStyle.Panel>
                             </GroupStyle>
                         </DataGrid.GroupStyle>
-                    </DataGrid> 
+                    </DataGrid>
                 </Grid>
             </TabItem>
             <TabItem x:Name="tabMinerals" Header="Empire Minerals" Margin="0,0,0,0">
@@ -202,6 +202,8 @@
         </TabControl>
         <TextBox x:Name="txtOutput" HorizontalAlignment="Left" Height="976" Margin="1473,37,0,0" Grid.RowSpan="2" TextWrapping="Wrap" VerticalAlignment="Top" Width="429" FontSize="14" Visibility="Hidden"/>
         <Button x:Name="btnShowLog" Content="Show/Hide Log" HorizontalAlignment="Left" Margin="1473,10,0,0" Grid.RowSpan="2" VerticalAlignment="Top" Width="426" Click="btnShowLog_Click"/>
+        <Label Content="Mineral Price Proj" HorizontalAlignment="Left" Margin="776,4,0,0" Grid.RowSpan="2" VerticalAlignment="Top" RenderTransformOrigin="-0.259,-0.455"/>
+        <TextBox x:Name="txtPriceProj" HorizontalAlignment="Left" Height="23" Margin="884,10,0,0" Grid.RowSpan="2" TextWrapping="Wrap" Text="5" VerticalAlignment="Top" Width="51" TextChanged="txtPriceProj_TextChanged"/>
 
     </Grid>
 </Window>

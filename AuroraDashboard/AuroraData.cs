@@ -234,6 +234,7 @@ namespace AuroraDashboard {
 
     public class AurSystem {
         public int ID;
+        public string FirstRaceName;
 
         public List<AurBody> Bodies = new List<AurBody>();
     }
@@ -628,7 +629,12 @@ namespace AuroraDashboard {
                     int bodIdx = reader.GetInt32(getCol(reader, "SystemBodyID"));
 
                     if (game.bodyIdx.ContainsKey(bodIdx)) {
-                        game.bodyIdx[bodIdx].isSurveyed[game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))]] = true;
+                        int raceId = reader.GetInt32(getCol(reader, "RaceID"));
+                        if (game.raceIdx.ContainsKey(raceId)) {
+                            if (game.bodyIdx[bodIdx].isSurveyed.ContainsKey(game.raceIdx[raceId])) {
+                                game.bodyIdx[bodIdx].isSurveyed[game.raceIdx[raceId]] = true;
+                            }
+                        }
                     }
                 }
 
@@ -648,6 +654,17 @@ namespace AuroraDashboard {
 
                     rSys.race.knownSystems.Add(rSys);
                     rSys.race.knownSysIdx.Add(rSys.system, rSys);
+
+                    if (rSys.race == game.Races[0]) {
+                        rSys.system.FirstRaceName = rSys.Name;
+                    }
+                }
+
+                // Append system name to base body names
+                foreach(var body in game.bodyIdx) {
+                    if(body.Value.system.FirstRaceName != "") {
+                        body.Value.Name = body.Value.system.FirstRaceName + body.Value.Name;
+                    }
                 }
 
                 cmd = new SqliteCommand("SELECT * FROM FCT_SystemBodyName WHERE" + GameCl + ";", con);
@@ -860,7 +877,7 @@ namespace AuroraDashboard {
                     fleet.speed = reader.GetDouble(getCol(reader, "Speed"));
 
                     int assignedPopID = reader.GetInt32(getCol(reader, "AssignedPopulationID"));
-                    if(assignedPopID != 0) {
+                    if(assignedPopID != 0 && game.popIdx.ContainsKey(assignedPopID)) {
                         fleet.assignedPop = game.popIdx[assignedPopID];
                         fleet.assignedPop.oribitingFleets.Add(fleet);
                     }
