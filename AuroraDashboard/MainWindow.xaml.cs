@@ -16,18 +16,22 @@ using System.Windows.Shapes;
 using LiveCharts;
 using LiveCharts.Wpf;
 
-namespace AuroraDashboard {
-    public class MineralPriceMod {
+namespace AuroraDashboard
+{
+    public class MineralPriceMod
+    {
         public double[] priceMult = new double[Enum.GetValues(typeof(MineralType)).Length];
 
         public static MineralPriceMod noMod;
         public static MineralPriceMod usefulnessMod;
 
-        static MineralPriceMod() {
+        static MineralPriceMod()
+        {
             noMod = new MineralPriceMod();
             usefulnessMod = new MineralPriceMod();
 
-            for (int i = 0; i < noMod.priceMult.Length; i++) {
+            for (int i = 0; i < noMod.priceMult.Length; i++)
+            {
                 noMod.priceMult[i] = 1;
                 usefulnessMod.priceMult[i] = 1;
             }
@@ -40,17 +44,20 @@ namespace AuroraDashboard {
         }
     }
 
-    class ProspectListItem {
+    class ProspectListItem
+    {
         public string Name { get; set; }
         public string Value { get; set; }
         public string[] MineralValues { private set; get; }
 
-        public ProspectListItem() {
+        public ProspectListItem()
+        {
             MineralValues = new string[Enum.GetValues(typeof(MineralType)).Length];
         }
     }
 
-    class WeaponListItem : INotifyPropertyChanged {
+    class WeaponListItem : INotifyPropertyChanged
+    {
         private bool _isSelected;
         public bool IsSelected { get { return _isSelected; } set { _isSelected = value; OnPropertyChanged("IsSelected"); } }
         public string Name { get; set; }
@@ -63,9 +70,11 @@ namespace AuroraDashboard {
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        protected virtual void OnPropertyChanged(string propertyName) {
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
             PropertyChangedEventHandler handler = PropertyChanged;
-            if (handler != null) {
+            if (handler != null)
+            {
                 handler(this, new PropertyChangedEventArgs(propertyName));
             }
         }
@@ -84,9 +93,11 @@ namespace AuroraDashboard {
         public double[] mineralPrices = new double[Enum.GetValues(typeof(MineralType)).Length];
         public double[] mineralProduction = new double[Enum.GetValues(typeof(MineralType)).Length];
 
-        public double GetCombinedMineralPrice(double[] minerals) {
+        public double GetCombinedMineralPrice(double[] minerals)
+        {
             double ret = 0;
-            for(int i =0;i < minerals.Length; i++) {
+            for (int i = 0; i < minerals.Length; i++)
+            {
                 ret += minerals[i] * mineralPrices[i];
             }
             return ret;
@@ -94,11 +105,14 @@ namespace AuroraDashboard {
 
         public Func<double, string> mineralLabelFunc = (value) => (value / 1000).ToString("N0") + "K";
 
-        public static double getDmgAtDist(double baseDmg, double rangeMod, double maxRange, double range) {
-            if (range <= maxRange) {
+        public static double getDmgAtDist(double baseDmg, double rangeMod, double maxRange, double range)
+        {
+            if (range <= maxRange)
+            {
                 double rangeFalloff = 1;
 
-                if (range > rangeMod) {
+                if (range > rangeMod)
+                {
                     rangeFalloff = rangeMod / range;
                 }
 
@@ -108,32 +122,38 @@ namespace AuroraDashboard {
             return 0;
         }
 
-        private void CalcMineralPrice() {
+        private void CalcMineralPrice()
+        {
             MineralPriceMod priceMod = MineralPriceMod.noMod;
-            switch (cmbPriceMod.SelectedIndex) {
-            case 1:
-                priceMod = MineralPriceMod.usefulnessMod;
-                break;
+            switch (cmbPriceMod.SelectedIndex)
+            {
+                case 1:
+                    priceMod = MineralPriceMod.usefulnessMod;
+                    break;
             }
 
             double projectionYears;
-            if(!double.TryParse(txtPriceProj.Text, out projectionYears)) {
+            if (!double.TryParse(txtPriceProj.Text, out projectionYears))
+            {
                 projectionYears = 5.0;
             }
 
             double[] mineralProjection = new double[curRace.minerals.Length];
-            for (int i = 0; i < curRace.minerals.Length; i++) {
+            for (int i = 0; i < curRace.minerals.Length; i++)
+            {
                 mineralProjection[i] = curRace.minerals[i] + mineralProduction[i] * projectionYears;
             }
 
             double mineralSum = 0;
-            for (int i = 0; i < curRace.minerals.Length; i++) {
+            for (int i = 0; i < curRace.minerals.Length; i++)
+            {
                 mineralSum += mineralProjection[i] / priceMod.priceMult[i];
             }
 
             double avgMineralAmt = mineralSum / curRace.minerals.Length;
 
-            for (int i = 0; i < curRace.minerals.Length; i++) {
+            for (int i = 0; i < curRace.minerals.Length; i++)
+            {
                 mineralPrices[i] = avgMineralAmt / (mineralProjection[i] / priceMod.priceMult[i]);
             }
 
@@ -145,24 +165,33 @@ namespace AuroraDashboard {
         public SeriesCollection pieMiningSeries = new SeriesCollection();
         public GridView prospectGrid;
 
-        void InitMineralSelector(ComboBox comboBox) {
+        void InitMineralSelector(ComboBox comboBox)
+        {
             comboBox.Items.Add("All minerals (amount)");
             comboBox.Items.Add("All minerals (price)");
-            foreach (string name in Enum.GetNames(typeof(MineralType))) {
+            foreach (string name in Enum.GetNames(typeof(MineralType)))
+            {
                 comboBox.Items.Add(name);
             }
             comboBox.SelectedIndex = 0;
         }
 
-        Func<double[], double> GetMineralSelectorFunc(ComboBox comboBox) {
+        Func<double[], double> GetMineralSelectorFunc(ComboBox comboBox)
+        {
             Func<double[], double> amountFunc;
-            if (comboBox.SelectedIndex > 1) {
+            if (comboBox.SelectedIndex > 1)
+            {
                 amountFunc = minerals => minerals[comboBox.SelectedIndex - 2];
-            } else if (comboBox.SelectedIndex == 1) {
-                amountFunc = minerals => {
+            }
+            else if (comboBox.SelectedIndex == 1)
+            {
+                amountFunc = minerals =>
+                {
                     return GetCombinedMineralPrice(minerals);
                 };
-            } else {
+            }
+            else
+            {
                 amountFunc = minerals => minerals.Sum();
             }
             return amountFunc;
@@ -203,91 +232,113 @@ namespace AuroraDashboard {
 
             chrtMineralMining.AxisX[0].Labels = Enum.GetNames(typeof(MineralType));
 
-            chrtProspect.Series[0].LabelPoint = (chartPoint) => {
-                if (cmbProspectFor.SelectedIndex == 0) {
+            chrtProspect.Series[0].LabelPoint = (chartPoint) =>
+            {
+                if (cmbProspectFor.SelectedIndex == 0)
+                {
                     return chrtProspect.AxisY[0].Labels[(int)chartPoint.Y] + "\n" + chartPoint.X.ToString("F2");
-                } else {
+                }
+                else
+                {
                     return chrtProspect.AxisY[0].Labels[(int)chartPoint.Y] + "\n" + mineralLabelFunc(chartPoint.X);
                 }
             };
 
             prospectGrid = (GridView)lstProspect.View;
-            prospectGrid.Columns.Add(new GridViewColumn() { Header = "Name", Width = 150, DisplayMemberBinding = new Binding("Name") }); 
+            prospectGrid.Columns.Add(new GridViewColumn() { Header = "Name", Width = 150, DisplayMemberBinding = new Binding("Name") });
             prospectGrid.Columns.Add(new GridViewColumn() { Header = "Value", Width = 70, DisplayMemberBinding = new Binding("Value") });
 
-            for (int i = 0; i < Enum.GetValues(typeof(MineralType)).Length; i++) {
-                prospectGrid.Columns.Add(new GridViewColumn() { Header = Enum.GetName(typeof(MineralType), i), Width = 103, DisplayMemberBinding = new Binding("MineralValues[" + i  + "]") });
+            for (int i = 0; i < Enum.GetValues(typeof(MineralType)).Length; i++)
+            {
+                prospectGrid.Columns.Add(new GridViewColumn() { Header = Enum.GetName(typeof(MineralType), i), Width = 103, DisplayMemberBinding = new Binding("MineralValues[" + i + "]") });
             }
         }
 
-        private async void btnLoadDB_Click(object sender, RoutedEventArgs e) {
+        private async void btnLoadDB_Click(object sender, RoutedEventArgs e)
+        {
             Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog();
             openFileDialog.Filter = "Aurora Database|*.db|All Files|*.*";
 
-            if (openFileDialog.ShowDialog() == true) {
+            if (openFileDialog.ShowDialog() == true)
+            {
                 Progress<AuroraDBReader.PrgMsg> progress = new Progress<AuroraDBReader.PrgMsg>();
                 progress.ProgressChanged += UpdateProgress;
 
                 txtOutput.Visibility = Visibility.Visible;
 
                 AuroraDBReader dbReader = new AuroraDBReader();
-                await Task.Run(() => {
+                await Task.Run(() =>
+                {
                     aurData = dbReader.ReadDB(openFileDialog.FileName, progress);
                 });
 
-                if (aurData != null) {
+                if (aurData != null)
+                {
                     txtOutput.Visibility = Visibility.Hidden;
                     ReloadGameCmb();
-                } else {
+                }
+                else
+                {
                     txtOutput.Text += "Error loading database file.\n";
                 }
             }
         }
 
-        private void UpdateProgress(object sender, AuroraDBReader.PrgMsg prg) {
+        private void UpdateProgress(object sender, AuroraDBReader.PrgMsg prg)
+        {
             prgLoad.Value = prg.progress * prgLoad.Maximum;
             txtOutput.Text = txtOutput.Text + "[" + (prg.progress * 100).ToString("000.0") + "%] " + prg.msg + "\n";
         }
 
-        void ReloadGameCmb() {
+        void ReloadGameCmb()
+        {
             cmbGame.Items.Clear();
-            foreach (AurGame game in aurData.Games) {
+            foreach (AurGame game in aurData.Games)
+            {
                 cmbGame.Items.Add(game.name);
             }
 
             cmbGame.SelectedIndex = 1;
         }
 
-        void ReloadRaceCmb() {
+        void ReloadRaceCmb()
+        {
             cmbRace.Items.Clear();
-            if (curGame == null) {
+            if (curGame == null)
+            {
                 return;
             }
 
-            foreach (AurRace race in curGame.Races) {
+            foreach (AurRace race in curGame.Races)
+            {
                 cmbRace.Items.Add(race.name);
             }
 
             cmbRace.SelectedIndex = 0;
         }
 
-        void OnPriceChanged() {
+        void OnPriceChanged()
+        {
             chrtMineralPrice.Series[0].Values = new ChartValues<double>(mineralPrices);
 
-            if (cmbStockpilePieMineral.SelectedIndex == 1) {
+            if (cmbStockpilePieMineral.SelectedIndex == 1)
+            {
                 RecalculateStockpilePie();
             }
 
-            if (cmbProspectMineral.SelectedIndex == 1) {
+            if (cmbProspectMineral.SelectedIndex == 1)
+            {
                 UpdateProspect();
             }
 
-            if (chkAnalyzePerPrice.IsChecked == true) {
+            if (chkAnalyzePerPrice.IsChecked == true)
+            {
                 UpdateWeaponAnalysis();
             }
         }
 
-        void OnRaceSelected() {
+        void OnRaceSelected()
+        {
             MineralPriceMod priceMod = MineralPriceMod.noMod;
 
             // Also calculates data for production amounts that figures in price
@@ -305,17 +356,22 @@ namespace AuroraDashboard {
             PopulatePopSummary();
         }
 
-        void PopulateWeaponList() {
+        void PopulateWeaponList()
+        {
             lstWeapons.Items.Clear();
 
             cmbWeapFC.Items.Clear();
-            foreach (var bfc in curRace.knownCompIdx[ComponentType.BFC]) {
+            foreach (var bfc in curRace.knownCompIdx[ComponentType.BFC])
+            {
                 cmbWeapFC.Items.Add(bfc.component.name);
             }
 
-            if (optAnalyzeWeapon.IsChecked == true) {
-                foreach (var weaponComp in curRace.knownCompIdx[ComponentType.Weapon]) {
-                    if (chkAnalyzeObsolete.IsChecked == true || !weaponComp.isObsolete) {
+            if (optAnalyzeWeapon.IsChecked == true)
+            {
+                foreach (var weaponComp in curRace.knownCompIdx[ComponentType.Weapon])
+                {
+                    if (chkAnalyzeObsolete.IsChecked == true || !weaponComp.isObsolete)
+                    {
                         WeaponListItem item = new WeaponListItem();
                         AurCompWeapon weapon = (AurCompWeapon)weaponComp.component;
                         item.Name = weapon.name;
@@ -323,23 +379,29 @@ namespace AuroraDashboard {
                         item.weapon = weapon;
                         item.Cost = weapon.cost.ToString("N0");
                         item.Price = GetCombinedMineralPrice(weapon.mineralCost).ToString("N0");
-                        item.PropertyChanged += (object sender, PropertyChangedEventArgs e) => {
+                        item.PropertyChanged += (object sender, PropertyChangedEventArgs e) =>
+                        {
                             UpdateWeaponAnalysis();
                         };
 
                         lstWeapons.Items.Add(item);
                     }
                 }
-            } else {
-                foreach (AurClass cls in curRace.classes) {
-                    if (cls.ppv > 0 && (chkAnalyzeObsolete.IsChecked == true || !cls.isObsolete)) {
+            }
+            else
+            {
+                foreach (AurClass cls in curRace.classes)
+                {
+                    if (cls.ppv > 0 && (chkAnalyzeObsolete.IsChecked == true || !cls.isObsolete))
+                    {
                         WeaponListItem item = new WeaponListItem();
                         item.Name = cls.name;
                         item.Size = (cls.tonnage / 50).ToString("N0");
                         item.cls = cls;
                         item.Cost = cls.cost.ToString("N0");
                         item.Price = GetCombinedMineralPrice(cls.mineralCost).ToString("N0");
-                        item.PropertyChanged += (object sender, PropertyChangedEventArgs e) => {
+                        item.PropertyChanged += (object sender, PropertyChangedEventArgs e) =>
+                        {
                             UpdateWeaponAnalysis();
                         };
 
@@ -357,47 +419,65 @@ namespace AuroraDashboard {
         double weaponTargetSpeed = 4000;
         Dictionary<AurCompWeapon, LineSeries> analyzedWeapons = new Dictionary<AurCompWeapon, LineSeries>();
         Dictionary<AurClass, LineSeries> analyzedClasses = new Dictionary<AurClass, LineSeries>();
-        void UpdateWeaponAnalysis() {
+        void UpdateWeaponAnalysis()
+        {
             chrtWeapons.UpdaterState = UpdaterState.Paused;
 
             double maxRange = 0;
-            if (optAnalyzeWeapon.IsChecked == true) {
-                if(analyzedClasses.Keys.Count > 0) {
+            if (optAnalyzeWeapon.IsChecked == true)
+            {
+                if (analyzedClasses.Keys.Count > 0)
+                {
                     chrtWeapons.Series.Clear();
                 }
                 analyzedClasses.Clear();
 
-                foreach (WeaponListItem item in lstWeapons.Items) {
-                    if (item.IsSelected) {
-                        if (!analyzedWeapons.ContainsKey(item.weapon)) {
+                foreach (WeaponListItem item in lstWeapons.Items)
+                {
+                    if (item.IsSelected)
+                    {
+                        if (!analyzedWeapons.ContainsKey(item.weapon))
+                        {
                             LineSeries series = new LineSeries();
 
                             chrtWeapons.Series.Add(series);
                             analyzedWeapons.Add(item.weapon, series);
                         }
-                    } else {
-                        if (analyzedWeapons.ContainsKey(item.weapon)) {
+                    }
+                    else
+                    {
+                        if (analyzedWeapons.ContainsKey(item.weapon))
+                        {
                             chrtWeapons.Series.Remove(analyzedWeapons[item.weapon]);
                             analyzedWeapons.Remove(item.weapon);
                         }
                     }
                 }
-            } else {
-                if (analyzedWeapons.Keys.Count > 0) {
+            }
+            else
+            {
+                if (analyzedWeapons.Keys.Count > 0)
+                {
                     chrtWeapons.Series.Clear();
                 }
                 analyzedWeapons.Clear();
 
-                foreach (WeaponListItem item in lstWeapons.Items) {
-                    if (item.IsSelected) {
-                        if (!analyzedClasses.ContainsKey(item.cls)) {
+                foreach (WeaponListItem item in lstWeapons.Items)
+                {
+                    if (item.IsSelected)
+                    {
+                        if (!analyzedClasses.ContainsKey(item.cls))
+                        {
                             LineSeries series = new LineSeries();
 
                             chrtWeapons.Series.Add(series);
                             analyzedClasses.Add(item.cls, series);
                         }
-                    } else {
-                        if (analyzedClasses.ContainsKey(item.cls)) {
+                    }
+                    else
+                    {
+                        if (analyzedClasses.ContainsKey(item.cls))
+                        {
                             chrtWeapons.Series.Remove(analyzedClasses[item.cls]);
                             analyzedClasses.Remove(item.cls);
                         }
@@ -406,17 +486,24 @@ namespace AuroraDashboard {
             }
 
             double maxWeaponFCRange = weaponFCRange;
-            if (optAnalyzeWeapon.IsChecked == true) {
-                foreach (AurCompWeapon weapon in analyzedWeapons.Keys) {
+            if (optAnalyzeWeapon.IsChecked == true)
+            {
+                foreach (AurCompWeapon weapon in analyzedWeapons.Keys)
+                {
                     maxRange = Math.Max(weapon.rangeMax, maxRange);
                 }
-            } else {
-                foreach (AurClass cls in analyzedClasses.Keys) {
-                    foreach (AurClass.Comp bfc in cls.components[ComponentType.BFC]) {
+            }
+            else
+            {
+                foreach (AurClass cls in analyzedClasses.Keys)
+                {
+                    foreach (AurClass.Comp bfc in cls.components[ComponentType.BFC])
+                    {
                         maxWeaponFCRange = Math.Max(((AurCompBFC)bfc.component).rangeMax, maxWeaponFCRange);
                     }
 
-                    foreach (AurClass.Comp weaponType in cls.components[ComponentType.Weapon]) {
+                    foreach (AurClass.Comp weaponType in cls.components[ComponentType.Weapon])
+                    {
                         maxRange = Math.Max(((AurCompWeapon)weaponType.component).rangeMax, maxRange);
                     }
                 }
@@ -426,14 +513,17 @@ namespace AuroraDashboard {
 
             int sampleCnt = 100;
             List<string> labelsX = new List<string>();
-            for (int i = 0; i < sampleCnt; i++) {
+            for (int i = 0; i < sampleCnt; i++)
+            {
                 double dist = maxRange * i / sampleCnt;
                 labelsX.Add(dist.ToString("N0"));
             }
             //List<string> labelsY = new List<string>();
 
-            if (optAnalyzeWeapon.IsChecked == true) {
-                foreach (AurCompWeapon weapon in analyzedWeapons.Keys) {
+            if (optAnalyzeWeapon.IsChecked == true)
+            {
+                foreach (AurCompWeapon weapon in analyzedWeapons.Keys)
+                {
                     analyzedWeapons[weapon].Values = new ChartValues<double>();
                     analyzedWeapons[weapon].Title = weapon.name;
                     analyzedWeapons[weapon].LineSmoothness = 0;
@@ -443,36 +533,46 @@ namespace AuroraDashboard {
                     double trackingSpeed = weapon.trackingSpeed > 0 ? weapon.trackingSpeed : weaponShipSpeed;
                     trackingSpeed = Math.Min(trackingSpeed, weaponFCSpeed);
 
-                    for (int i = 0; i < sampleCnt; i++) {
+                    for (int i = 0; i < sampleCnt; i++)
+                    {
                         double dist = maxRange * i / sampleCnt;
 
                         double dmg = GetWeaponAnalysisValue(weapon, dist, weaponFCRange, shotInterval, trackingSpeed, weaponTargetSpeed, weapon.size, weapon.cost, weapon.mineralCost);
 
-                        if (dmg > 0) {
+                        if (dmg > 0)
+                        {
                             analyzedWeapons[weapon].Values.Add(dmg);
-                        } else {
+                        }
+                        else
+                        {
                             break;
                         }
                     }
                 }
-            } else {
-                foreach (AurClass cls in analyzedClasses.Keys) {
+            }
+            else
+            {
+                foreach (AurClass cls in analyzedClasses.Keys)
+                {
                     analyzedClasses[cls].Values = new ChartValues<double>();
                     analyzedClasses[cls].Title = cls.name;
                     analyzedClasses[cls].LineSmoothness = 0;
 
-                    for (int i = 0; i < sampleCnt; i++) {
+                    for (int i = 0; i < sampleCnt; i++)
+                    {
                         double dist = maxRange * i / sampleCnt;
                         double dmgSum = 0;
 
-                        foreach (AurClass.Comp weaponType in cls.components[ComponentType.Weapon]) {
+                        foreach (AurClass.Comp weaponType in cls.components[ComponentType.Weapon])
+                        {
                             AurCompWeapon weapon = (AurCompWeapon)weaponType.component;
 
                             int shotInterval = weapon.powerRequired > 0 ? ((int)Math.Ceiling(weapon.powerRequired / weapon.recharge)) : 1;
                             double weaponTrackingSpeed = weapon.trackingSpeed > 0 ? weapon.trackingSpeed : cls.maxSpeed;
 
                             double dmgPotential = 0;
-                            foreach (AurClass.Comp bfc in cls.components[ComponentType.BFC]) {
+                            foreach (AurClass.Comp bfc in cls.components[ComponentType.BFC])
+                            {
                                 double fcRange = ((AurCompBFC)bfc.component).rangeMax;
                                 double fcTrackingSpeed = ((AurCompBFC)bfc.component).trackingSpeed;
 
@@ -487,9 +587,12 @@ namespace AuroraDashboard {
                         }
 
 
-                        if (dmgSum > 0) {
+                        if (dmgSum > 0)
+                        {
                             analyzedClasses[cls].Values.Add(dmgSum);
-                        } else {
+                        }
+                        else
+                        {
                             break;
                         }
                     }
@@ -501,37 +604,50 @@ namespace AuroraDashboard {
             chrtWeapons.Update();
         }
 
-        double GetWeaponAnalysisValue(AurCompWeapon weapon, double dist, double fcRange, int shotInterval, double fcTrackingSpeed, double targetSpeed, double hs, double cost, double[] mineralCost) {
+        double GetWeaponAnalysisValue(AurCompWeapon weapon, double dist, double fcRange, int shotInterval, double fcTrackingSpeed, double targetSpeed, double hs, double cost, double[] mineralCost)
+        {
             double dmg = getDmgAtDist(weapon.damage, weapon.rangeMod, weapon.rangeMax, dist) * weapon.shots;
 
-            if (optAnalyzeShots.IsChecked == true) {
-                if (dmg > 0) {
+            if (optAnalyzeShots.IsChecked == true)
+            {
+                if (dmg > 0)
+                {
                     dmg = weapon.shots;
-                } else {
+                }
+                else
+                {
                     dmg = 0;
                 }
             }
 
             dmg *= weapon.toHitMod;
 
-            if (chkAnalyzePer5s.IsChecked == true) {
+            if (chkAnalyzePer5s.IsChecked == true)
+            {
                 dmg /= shotInterval;
             }
 
-            if (chkAnalyzePerHS.IsChecked == true) {
+            if (chkAnalyzePerHS.IsChecked == true)
+            {
                 dmg /= hs;
-            } else if (chkAnalyzePerCost.IsChecked == true) {
+            }
+            else if (chkAnalyzePerCost.IsChecked == true)
+            {
                 dmg /= cost;
-            } else if (chkAnalyzePerPrice.IsChecked == true) {
+            }
+            else if (chkAnalyzePerPrice.IsChecked == true)
+            {
                 double price = GetCombinedMineralPrice(mineralCost);
 
                 dmg /= price;
             }
 
-            if (chkAnalyzeWithFC.IsChecked == true) {
+            if (chkAnalyzeWithFC.IsChecked == true)
+            {
                 dmg *= (1.0 - dist / fcRange);
 
-                if (fcTrackingSpeed < targetSpeed) {
+                if (fcTrackingSpeed < targetSpeed)
+                {
                     dmg *= (fcTrackingSpeed / targetSpeed);
                 }
             }
@@ -544,11 +660,14 @@ namespace AuroraDashboard {
         int prospectResCnt = 50;
         int prospectChrtCnt = 15;
 
-        void UpdateProspect() {
+        void UpdateProspect()
+        {
             chrtProspect.UpdaterState = UpdaterState.Paused;
 
-            bool filterFunc(AurBody body) {
-                if (cmbProspectTarget.SelectedIndex != 0) {
+            bool filterFunc(AurBody body)
+            {
+                if (cmbProspectTarget.SelectedIndex != 0)
+                {
                     return (body.populations.Count > 0) == (cmbProspectTarget.SelectedIndex == 1);
                 }
 
@@ -556,19 +675,22 @@ namespace AuroraDashboard {
             }
 
             Func<double[], double> amountFunc = GetMineralSelectorFunc(cmbProspectMineral);
-            double valueFunc(AurBody body) {
+            double valueFunc(AurBody body)
+            {
                 double[] mineralsAdjsuted = new double[Enum.GetValues(typeof(MineralType)).Length];
-                for (int i = 0; i < Enum.GetValues(typeof(MineralType)).Length; i++) {
-                    switch (cmbProspectFor.SelectedIndex) {
-                    case 0:
-                        mineralsAdjsuted[i] = body.minerals[i] >= prospectMinAmount ? body.mineralsAcc[i] : 0;
-                        break;
-                    case 1:
-                        mineralsAdjsuted[i] = Math.Min(body.minerals[i], prospectAmountCap) * body.mineralsAcc[i];
-                        break;
-                    case 2:
-                        mineralsAdjsuted[i] = Math.Min(body.minerals[i], prospectAmountCap);
-                        break;
+                for (int i = 0; i < Enum.GetValues(typeof(MineralType)).Length; i++)
+                {
+                    switch (cmbProspectFor.SelectedIndex)
+                    {
+                        case 0:
+                            mineralsAdjsuted[i] = body.minerals[i] >= prospectMinAmount ? body.mineralsAcc[i] : 0;
+                            break;
+                        case 1:
+                            mineralsAdjsuted[i] = Math.Min(body.minerals[i], prospectAmountCap) * body.mineralsAcc[i];
+                            break;
+                        case 2:
+                            mineralsAdjsuted[i] = Math.Min(body.minerals[i], prospectAmountCap);
+                            break;
                     }
                 }
 
@@ -582,11 +704,13 @@ namespace AuroraDashboard {
             lstProspect.Items.Clear();
 
             int cnt = 0;
-            foreach (AurBody body in (from dictRec in curGame.bodyIdx where (dictRec.Value.hasMinerals && dictRec.Value.isSurveyed[curRace] && filterFunc(dictRec.Value)) orderby valueFunc(dictRec.Value) descending select dictRec.Value).Take(prospectResCnt)) {
+            foreach (AurBody body in (from dictRec in curGame.bodyIdx where (dictRec.Value.hasMinerals && dictRec.Value.isSurveyed[curRace] && filterFunc(dictRec.Value)) orderby valueFunc(dictRec.Value) descending select dictRec.Value).Take(prospectResCnt))
+            {
                 double value = valueFunc(body);
                 string name = body.GetName(curRace);
 
-                if (cnt < prospectChrtCnt) {
+                if (cnt < prospectChrtCnt)
+                {
                     values.Add(value);
                     labels.Add(name);
                 }
@@ -595,7 +719,8 @@ namespace AuroraDashboard {
                 listItem.Name = name;
                 listItem.Value = value > 1000 ? (value / 1000).ToString("N0") + "K" : value.ToString("F2");
 
-                for (int i = 0; i < Enum.GetValues(typeof(MineralType)).Length; i++) {
+                for (int i = 0; i < Enum.GetValues(typeof(MineralType)).Length; i++)
+                {
                     listItem.MineralValues[i] = body.minerals[i].ToString("N0") + " (" + body.mineralsAcc[i].ToString("N1") + ")";
                 }
 
@@ -607,39 +732,47 @@ namespace AuroraDashboard {
             chrtProspect.Update();
         }
 
-        void PopulatePopSummary() {
+        void PopulatePopSummary()
+        {
             RecalculatePopPie();
 
             RecalculatePopSummaryText();
         }
 
-        public class EmpireSummaryEntry {
+        public class EmpireSummaryEntry
+        {
             public string Description { get; set; }
             public string Value { get; set; }
             public string Category { get; set; }
         }
 
-        void RecalculatePopSummaryText() {
+        void RecalculatePopSummaryText()
+        {
             List<EmpireSummaryEntry> EmpireSummaryList = new List<EmpireSummaryEntry>();
 
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Overall population (M)",
                 Value = curRace.populationSum.ToString("N0"),
                 Category = "Population"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Number of populated colonies",
                 Value = (from pop in curRace.populations where pop.population > 0 select pop).Count().ToString("N0"),
                 Category = "Population"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Number of colonies",
                 Value = curRace.populations.Count.ToString("N0"),
                 Category = "Population"
             });
 
-            for(int i = 0;i < curRace.installations.Length; i++) {
-                EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            for (int i = 0; i < curRace.installations.Length; i++)
+            {
+                EmpireSummaryList.Add(new EmpireSummaryEntry()
+                {
                     Description = Enum.GetName(typeof(InstallationType), i),
                     Value = curRace.installations[i].ToString("N0"),
                     Category = "Installations"
@@ -647,10 +780,13 @@ namespace AuroraDashboard {
             }
 
             double orbitalFuelProd = 0;
-            foreach (AurFleet fleet in curRace.fleets) {
-                if (fleet.orbitBody != null && fleet.orbitBody.minerals[(int)MineralType.Sorium] > 0) {
+            foreach (AurFleet fleet in curRace.fleets)
+            {
+                if (fleet.orbitBody != null && fleet.orbitBody.minerals[(int)MineralType.Sorium] > 0)
+                {
                     int harvesters = 0;
-                    foreach (AurShip ship in fleet.ships) {
+                    foreach (AurShip ship in fleet.ships)
+                    {
                         harvesters += ship.shipClass.fuelHarvestingModules;
                     }
 
@@ -659,66 +795,80 @@ namespace AuroraDashboard {
             }
 
             double planetFuelProd = 0;
-            foreach(AurPop pop in curRace.populations) {
-                if (pop.fuelProdEnabled) {
+            foreach (AurPop pop in curRace.populations)
+            {
+                if (pop.fuelProdEnabled)
+                {
                     planetFuelProd += pop.installations[(int)InstallationType.Refinery] * curRace.prodFuel * pop.prodEfficiency;
                 }
             }
 
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Fuel production (L/year)",
                 Value = (planetFuelProd + orbitalFuelProd).ToString("N0"),
                 Category = "Fuel"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Fuel production (orbital) (L/year)",
                 Value = (orbitalFuelProd).ToString("N0"),
                 Category = "Fuel"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Fuel at populations (L)",
                 Value = curRace.popFuelSum.ToString("N0"),
                 Category = "Fuel"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Fuel on ships (L)",
                 Value = curRace.shipFuelSum.ToString("N0"),
                 Category = "Fuel"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Ship fuel capacity (L)",
                 Value = curRace.shipFuelCapSum.ToString("N0"),
                 Category = "Fuel"
             });
 
             double planetMSPProd = 0;
-            foreach (AurPop pop in curRace.populations) {
-                if (pop.mspProdEnabled) {
+            foreach (AurPop pop in curRace.populations)
+            {
+                if (pop.mspProdEnabled)
+                {
                     planetMSPProd += pop.installations[(int)InstallationType.MaintenanceFacility] * curRace.prodMSP * 4 * pop.prodEfficiency;
                 }
             }
 
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = " Annual ship MSP cost",
                 Value = curRace.shipMSPAnnualCost.ToString("N0"),
                 Category = "Maintenance"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Annual MSP production",
                 Value = planetMSPProd.ToString("N0"),
                 Category = "Maintenance"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "MSP at populations",
                 Value = curRace.popMSPSum.ToString("N0"),
                 Category = "Maintenance"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "MSP on ships",
                 Value = curRace.shipMSPSum.ToString("N0"),
                 Category = "Maintenance"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Ship MSP capacity",
                 Value = curRace.shipMSPCapSum.ToString("N0"),
                 Category = "Maintenance"
@@ -734,108 +884,134 @@ namespace AuroraDashboard {
             double colonistThroughputNonciv = 0;
             double tankerCap = 0;
             double tankerThroughput = 0;
-            foreach (AurShip ship in curRace.ships) {
-                if (ship.isCivilian) {
+            foreach (AurShip ship in curRace.ships)
+            {
+                if (ship.isCivilianLine)
+                {
                     civTonSum += ship.shipClass.tonnage;
-                } else if (ship.shipClass.isMilitary) {
+                }
+                else if (ship.shipClass.isMilitary)
+                {
                     milTonSum += ship.shipClass.tonnage;
-                    if(ship.shipClass.maxSpeed > 1) {
+                    if (ship.shipClass.maxSpeed > 1)
+                    {
                         milShipTonSum += ship.shipClass.tonnage;
                     }
-                } else {
+                }
+                else
+                {
                     comTonSum += ship.shipClass.tonnage;
 
-                    if (ship.shipClass.maxSpeed > 1) {
+                    if (ship.shipClass.maxSpeed > 1)
+                    {
                         comShipTonSum += ship.shipClass.tonnage;
                     }
                 }
 
-                if (ship.shipClass.cargoCapacity > 0) {
+                if (ship.shipClass.cargoCapacity > 0)
+                {
                     cargoCap += ship.shipClass.cargoCapacity;
                     cargoThroughput += ship.shipClass.cargoCapacity * ship.shipClass.maxSpeed;
 
-                    if (!ship.isCivilian) {
+                    if (!ship.isCivilianLine)
+                    {
                         cargoThroughputNonciv += ship.shipClass.cargoCapacity * ship.shipClass.maxSpeed;
                     }
                 }
 
-                if (!ship.shipClass.isMilitary && ship.shipClass.colonistCapacity > 0) {
+                if (!ship.shipClass.isMilitary && ship.shipClass.colonistCapacity > 0)
+                {
                     colonistCap += ship.shipClass.colonistCapacity;
                     colonistThroughput += ship.shipClass.colonistCapacity * ship.shipClass.maxSpeed;
 
-                    if (!ship.isCivilian) {
+                    if (!ship.isCivilianLine)
+                    {
                         colonistThroughputNonciv += ship.shipClass.colonistCapacity * ship.shipClass.maxSpeed;
                     }
                 }
 
-                if (ship.shipClass.isTanker) {
+                if (ship.shipClass.isTanker)
+                {
                     tankerCap += ship.shipClass.fuel;
                     tankerThroughput += ship.shipClass.fuel * ship.shipClass.maxSpeed;
                 }
             }
 
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Cargo ship capacity (CargoUnits)",
                 Value = cargoCap.ToString("N0"),
                 Category = "Logistics"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Colonist ship capacity (Colonists)",
                 Value = colonistCap.ToString("N0"),
                 Category = "Logistics"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Tanker ship capacity (L)",
                 Value = tankerCap.ToString("N0"),
                 Category = "Logistics"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Cargo ship throughput (CargoUnits * km/s)",
                 Value = cargoThroughput.ToString("N0"),
                 Category = "Logistics"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Cargo ship throughput (CargoUnits * km/s) (Non-civilian)",
                 Value = cargoThroughputNonciv.ToString("N0"),
                 Category = "Logistics"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Colonist ship throughput (Colonists * km/s)",
                 Value = colonistThroughput.ToString("N0"),
                 Category = "Logistics"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Colonist ship throughput (Colonists * km/s) (Non-civilian)",
                 Value = colonistThroughputNonciv.ToString("N0"),
                 Category = "Logistics"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Tanker ship throughput (L * km/s)",
                 Value = tankerThroughput.ToString("N0"),
                 Category = "Logistics"
             });
 
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Military Tonnage",
                 Value = milTonSum.ToString("N0"),
                 Category = "Fleets"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Military Tonnage (Ships)",
                 Value = milShipTonSum.ToString("N0"),
                 Category = "Fleets"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Commercial Tonnage",
                 Value = comTonSum.ToString("N0"),
                 Category = "Fleets"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Commercial Tonnage (Ships)",
                 Value = comShipTonSum.ToString("N0"),
                 Category = "Fleets"
             });
-            EmpireSummaryList.Add(new EmpireSummaryEntry() {
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
                 Description = "Civilian Tonnage",
                 Value = civTonSum.ToString("N0"),
                 Category = "Fleets"
@@ -850,32 +1026,42 @@ namespace AuroraDashboard {
             dgEmpireSummary.Columns[1].CellStyle = Resources["numberCellStyle"] as Style;
         }
 
-        void RecalculatePopPie() {
+        void RecalculatePopPie()
+        {
             piePopulation.UpdaterState = UpdaterState.Paused;
             piePopulationSeries.Clear();
 
             Dictionary<AurSpecies, double> speciesPop = new Dictionary<AurSpecies, double>();
 
-            foreach (AurPop pop in curRace.populations) {
-                if (!speciesPop.ContainsKey(pop.species)) {
+            foreach (AurPop pop in curRace.populations)
+            {
+                if (!speciesPop.ContainsKey(pop.species))
+                {
                     speciesPop.Add(pop.species, pop.population);
-                } else {
+                }
+                else
+                {
                     speciesPop[pop.species] += pop.population;
                 }
             }
 
-            foreach(AurSpecies species in (from spec in speciesPop.Keys orderby speciesPop[spec] descending select spec)) {
+            foreach (AurSpecies species in (from spec in speciesPop.Keys orderby speciesPop[spec] descending select spec))
+            {
                 bool speciesPieAdded = false;
-                foreach (AurPop pop in (from pop in curRace.populations where pop.population > 0 && pop.species == species orderby pop.population descending select pop)) {
+                foreach (AurPop pop in (from pop in curRace.populations where pop.population > 0 && pop.species == species orderby pop.population descending select pop))
+                {
                     PieSeries pieSeries = new PieSeries();
                     piePopulationSeries.Add(pieSeries);
 
                     ChartValues<double> popVal = new ChartValues<double>();
 
-                    if (!speciesPieAdded) {
+                    if (!speciesPieAdded)
+                    {
                         popVal.Add(speciesPop[species]);
                         speciesPieAdded = true;
-                    } else {
+                    }
+                    else
+                    {
                         popVal.Add(0);
                     }
 
@@ -883,8 +1069,9 @@ namespace AuroraDashboard {
 
                     pieSeries.Title = "";
                     pieSeries.Values = popVal;
-                    pieSeries.LabelPoint = (chartPoint) => { 
-                        return chartPoint.X == 0 ? (species.name + ": " + speciesPop[species].ToString("N0") + "M") : pop.name + ": " + pop.population.ToString("N0") + "M"; 
+                    pieSeries.LabelPoint = (chartPoint) =>
+                    {
+                        return chartPoint.X == 0 ? (species.name + ": " + speciesPop[species].ToString("N0") + "M") : pop.name + ": " + pop.population.ToString("N0") + "M";
                     };
                     pieSeries.DataLabels = pop.population / speciesPop[species] > 0.07;
                 }
@@ -894,18 +1081,21 @@ namespace AuroraDashboard {
             piePopulation.Update();
         }
 
-        void RecalculateStockpilePie() {
+        void RecalculateStockpilePie()
+        {
             pieStockpiles.UpdaterState = UpdaterState.Paused;
 
             Func<double[], double> amountFunc = GetMineralSelectorFunc(cmbStockpilePieMineral);
 
             int seriesIdx = 0;
             double highestAmount = 0;
-            foreach (AurPop pop in (from pop in curRace.populations where amountFunc(pop.minerals) > 0 orderby amountFunc(pop.minerals) descending select pop)) {
+            foreach (AurPop pop in (from pop in curRace.populations where amountFunc(pop.minerals) > 0 orderby amountFunc(pop.minerals) descending select pop))
+            {
                 double amount = amountFunc(pop.minerals);
                 highestAmount = Math.Max(highestAmount, amount);
 
-                if(amount / highestAmount < 0.025) {
+                if (amount / highestAmount < 0.025)
+                {
                     break;
                 }
 
@@ -913,10 +1103,13 @@ namespace AuroraDashboard {
                 val.Add(amount);
 
                 PieSeries pieSeries;
-                if (pieStockpilesSeries.Count <= seriesIdx) {
+                if (pieStockpilesSeries.Count <= seriesIdx)
+                {
                     pieSeries = new PieSeries();
                     pieStockpilesSeries.Add(pieSeries);
-                } else {
+                }
+                else
+                {
                     pieSeries = (PieSeries)pieStockpilesSeries[seriesIdx];
                 }
 
@@ -927,7 +1120,8 @@ namespace AuroraDashboard {
                 seriesIdx++;
             }
 
-            while (pieStockpilesSeries.Count > seriesIdx) {
+            while (pieStockpilesSeries.Count > seriesIdx)
+            {
                 pieStockpilesSeries.RemoveAt(seriesIdx);
             }
 
@@ -935,7 +1129,8 @@ namespace AuroraDashboard {
             pieStockpiles.Update();
         }
 
-        void AddPieMineralsSeries(string name, double mineValue, double highestValue, double[] inst, double omCnt) {
+        void AddPieMineralsSeries(string name, double mineValue, double highestValue, double[] inst, double omCnt)
+        {
             PieSeries pieSeries = new PieSeries();
             pieMiningSeries.Add(pieSeries);
 
@@ -944,7 +1139,8 @@ namespace AuroraDashboard {
 
             pieSeries.Values = val;
             pieSeries.Title = "";
-            pieSeries.LabelPoint = (chartPoint) => {
+            pieSeries.LabelPoint = (chartPoint) =>
+            {
                 return name + " (" + mineValue.ToString("N1") + ")\n" +
                     inst[(int)InstallationType.Mine].ToString("N1") + "M " +
                     inst[(int)InstallationType.AutoMine].ToString("N1") + "AM " +
@@ -954,22 +1150,27 @@ namespace AuroraDashboard {
             pieSeries.DataLabels = mineValue / highestValue > 0.33;
         }
 
-        class MineralBar {
+        class MineralBar
+        {
             public MineralType mineralType;
             public double amount;
         }
         LiveCharts.Configurations.CartesianMapper<MineralBar> mineralBarsMapper = new LiveCharts.Configurations.CartesianMapper<MineralBar>();
 
-        void RecalculateMiningCharts() {
+        void RecalculateMiningCharts()
+        {
             pieMining.UpdaterState = UpdaterState.Paused;
             chrtMineralMining.UpdaterState = UpdaterState.Paused;
 
             SeriesCollection miningBarSeries = chrtMineralMining.Series;
 
-            double mineValueFunc(AurPop pop) {
+            double mineValueFunc(AurPop pop)
+            {
                 int omModuleCnt = 0;
-                foreach (AurFleet fleet in pop.oribitingFleets) {
-                    foreach (AurShip ship in fleet.ships) {
+                foreach (AurFleet fleet in pop.oribitingFleets)
+                {
+                    foreach (AurShip ship in fleet.ships)
+                    {
                         omModuleCnt += ship.shipClass.miningModules;
                     }
                 }
@@ -987,23 +1188,30 @@ namespace AuroraDashboard {
             double[] othersInstSum = new double[Enum.GetValues(typeof(InstallationType)).Length];
             int othersOmCnt = 0;
             int seriesIdx = 0;
-            foreach (AurPop pop in (from pop in miningPops orderby mineValueFunc(pop) descending select pop)) {
+            foreach (AurPop pop in (from pop in miningPops orderby mineValueFunc(pop) descending select pop))
+            {
                 double mineValue = mineValueFunc(pop);
                 highestValue = Math.Max(highestValue, mineValue);
 
                 int omModuleCnt = 0;
-                foreach (AurFleet fleet in pop.oribitingFleets) {
-                    foreach (AurShip ship in fleet.ships) {
+                foreach (AurFleet fleet in pop.oribitingFleets)
+                {
+                    foreach (AurShip ship in fleet.ships)
+                    {
                         omModuleCnt += ship.shipClass.miningModules;
                     }
                 }
 
-                if (seriesIdx < pieMiningLimit && mineValue / highestValue > 0.05) {
+                if (seriesIdx < pieMiningLimit && mineValue / highestValue > 0.05)
+                {
                     AddPieMineralsSeries(pop.name, mineValue, highestValue, pop.installations, omModuleCnt);
-                } else {
+                }
+                else
+                {
                     othersValSum += mineValue;
                     othersOmCnt += omModuleCnt;
-                    for(int i = 0;i < othersInstSum.Length; i++) {
+                    for (int i = 0; i < othersInstSum.Length; i++)
+                    {
                         othersInstSum[i] += pop.installations[i];
                     }
                 }
@@ -1011,7 +1219,8 @@ namespace AuroraDashboard {
                 seriesIdx++;
             }
 
-            if (othersValSum > 0) {
+            if (othersValSum > 0)
+            {
                 AddPieMineralsSeries("Others", othersValSum, highestValue, othersInstSum, othersOmCnt);
             }
 
@@ -1019,18 +1228,22 @@ namespace AuroraDashboard {
 
             double[] othersMiningProdSum = new double[Enum.GetValues(typeof(MineralType)).Length];
             Dictionary<AurPop, StackedColumnSeries> stackedSeries = new Dictionary<AurPop, StackedColumnSeries>();
-            for (int i = 0; i < othersMiningProdSum.Length; i++) {
+            for (int i = 0; i < othersMiningProdSum.Length; i++)
+            {
                 mineralProduction[i] = 0.0;
 
                 seriesIdx = 0;
-                foreach (AurPop pop in (from pop in miningPops orderby mineValueFunc(pop) * pop.body.mineralsAcc[i] descending select pop)) {
+                foreach (AurPop pop in (from pop in miningPops orderby mineValueFunc(pop) * pop.body.mineralsAcc[i] descending select pop))
+                {
                     double mineralProdValue = mineValueFunc(pop) * pop.body.mineralsAcc[i] * curRace.prodMine;
 
                     mineralProduction[i] += mineralProdValue;
 
-                    if (seriesIdx < chrtMiningLimit) {
+                    if (seriesIdx < chrtMiningLimit)
+                    {
                         StackedColumnSeries columnSeries;
-                        if (!stackedSeries.ContainsKey(pop)) {
+                        if (!stackedSeries.ContainsKey(pop))
+                        {
                             columnSeries = new StackedColumnSeries(mineralBarsMapper);
                             stackedSeries.Add(pop, columnSeries);
 
@@ -1044,12 +1257,16 @@ namespace AuroraDashboard {
                             columnSeries.LabelsPosition = BarLabelPosition.Perpendicular;
 
                             miningBarSeries.Add(columnSeries);
-                        } else {
+                        }
+                        else
+                        {
                             columnSeries = stackedSeries[pop];
                         }
 
                         columnSeries.Values.Add(new MineralBar() { mineralType = (MineralType)i, amount = mineralProdValue });
-                    } else {
+                    }
+                    else
+                    {
                         othersMiningProdSum[i] += mineralProdValue;
                     }
 
@@ -1068,8 +1285,10 @@ namespace AuroraDashboard {
             pieMining.Update();
         }
 
-        private void cmbGame_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-            if(cmbGame.SelectedIndex == -1) {
+        private void cmbGame_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cmbGame.SelectedIndex == -1)
+            {
                 return;
             }
             curGame = aurData.Games[cmbGame.SelectedIndex];
@@ -1077,8 +1296,10 @@ namespace AuroraDashboard {
             ReloadRaceCmb();
         }
 
-        private void cmbRace_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-            if (cmbRace.SelectedIndex == -1) {
+        private void cmbRace_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cmbRace.SelectedIndex == -1)
+            {
                 return;
             }
             curRace = curGame.Races[cmbRace.SelectedIndex];
@@ -1086,37 +1307,51 @@ namespace AuroraDashboard {
             OnRaceSelected();
         }
 
-        private void btnShowLog_Click(object sender, RoutedEventArgs e) {
-            if(txtOutput.Visibility != Visibility.Visible) {
+        private void btnShowLog_Click(object sender, RoutedEventArgs e)
+        {
+            if (txtOutput.Visibility != Visibility.Visible)
+            {
                 txtOutput.Visibility = Visibility.Visible;
-            } else {
+            }
+            else
+            {
                 txtOutput.Visibility = Visibility.Hidden;
             }
         }
 
-        private void cmbPriceMod_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-            if (curRace != null) {
+        private void cmbPriceMod_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (curRace != null)
+            {
                 CalcMineralPrice();
             }
         }
 
-        private void cmbStockpileMineral_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-            if (curRace != null) {
+        private void cmbStockpileMineral_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (curRace != null)
+            {
                 RecalculateStockpilePie();
             }
         }
 
-        private void cmbProspect_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-            if(curRace != null) {
+        private void cmbProspect_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (curRace != null)
+            {
                 UpdateProspect();
             }
         }
 
-        private void cmbProspectFor_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-            if (cmbProspectFor.SelectedIndex == 0) {
+        private void cmbProspectFor_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cmbProspectFor.SelectedIndex == 0)
+            {
                 lblProspectLimit.Content = "Min Amount";
                 txtProspectLimit.Text = prospectMinAmount.ToString("F0");
-            } else {
+            }
+            else
+            {
                 lblProspectLimit.Content = "Amount Cap";
                 txtProspectLimit.Text = prospectAmountCap.ToString("F0");
             }
@@ -1124,81 +1359,107 @@ namespace AuroraDashboard {
             cmbProspect_SelectionChanged(sender, e);
         }
 
-        private void txtProspectLimit_TextChanged(object sender, TextChangedEventArgs e) {
-            if (double.TryParse(txtProspectLimit.Text, out double val)) {
-                if (cmbProspectFor.SelectedIndex == 0) {
+        private void txtProspectLimit_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (double.TryParse(txtProspectLimit.Text, out double val))
+            {
+                if (cmbProspectFor.SelectedIndex == 0)
+                {
                     prospectMinAmount = val;
-                } else {
+                }
+                else
+                {
                     prospectAmountCap = val;
                 }
             }
 
-            if (curRace != null) {
+            if (curRace != null)
+            {
                 UpdateProspect();
             }
         }
 
-        private void txtWeapFCRange_TextChanged(object sender, TextChangedEventArgs e) {
-            if (double.TryParse(txtWeapFCRange.Text, out double val) && val > 0) {
+        private void txtWeapFCRange_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (double.TryParse(txtWeapFCRange.Text, out double val) && val > 0)
+            {
                 weaponFCRange = val;
             }
 
-            if (curRace != null) {
+            if (curRace != null)
+            {
                 UpdateWeaponAnalysis();
             }
         }
 
-        private void txtWeapFCTrack_TextChanged(object sender, TextChangedEventArgs e) {
-            if (double.TryParse(txtWeapFCTrack.Text, out double val) && val > 0) {
+        private void txtWeapFCTrack_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (double.TryParse(txtWeapFCTrack.Text, out double val) && val > 0)
+            {
                 weaponFCSpeed = val;
             }
 
-            if (curRace != null && chkAnalyzeWithFC.IsChecked == true) {
+            if (curRace != null && chkAnalyzeWithFC.IsChecked == true)
+            {
                 UpdateWeaponAnalysis();
             }
         }
 
-        private void txtWeapShipSpeed_TextChanged(object sender, TextChangedEventArgs e) {
-            if (double.TryParse(txtWeapShipSpeed.Text, out double val) && val > 0) {
+        private void txtWeapShipSpeed_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (double.TryParse(txtWeapShipSpeed.Text, out double val) && val > 0)
+            {
                 weaponShipSpeed = val;
             }
 
-            if (curRace != null && chkAnalyzeWithFC.IsChecked == true) {
+            if (curRace != null && chkAnalyzeWithFC.IsChecked == true)
+            {
                 UpdateWeaponAnalysis();
             }
         }
 
-        private void txtWeapTargetSpeed_TextChanged(object sender, TextChangedEventArgs e) {
-            if (double.TryParse(txtWeapTargetSpeed.Text, out double val) && val > 0) {
+        private void txtWeapTargetSpeed_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (double.TryParse(txtWeapTargetSpeed.Text, out double val) && val > 0)
+            {
                 weaponTargetSpeed = val;
             }
 
-            if (curRace != null && chkAnalyzeWithFC.IsChecked == true) {
+            if (curRace != null && chkAnalyzeWithFC.IsChecked == true)
+            {
                 UpdateWeaponAnalysis();
             }
         }
 
-        private void chkPerCost_Checked(object sender, RoutedEventArgs e) {
-            if(sender != chkAnalyzePerHS) {
-                chkAnalyzePerHS.IsChecked = false;   
+        private void chkPerCost_Checked(object sender, RoutedEventArgs e)
+        {
+            if (sender != chkAnalyzePerHS)
+            {
+                chkAnalyzePerHS.IsChecked = false;
             }
-            if(sender != chkAnalyzePerCost) {
-                chkAnalyzePerCost.IsChecked = false;   
+            if (sender != chkAnalyzePerCost)
+            {
+                chkAnalyzePerCost.IsChecked = false;
             }
-            if(sender != chkAnalyzePerPrice) {
-                chkAnalyzePerPrice.IsChecked = false;   
+            if (sender != chkAnalyzePerPrice)
+            {
+                chkAnalyzePerPrice.IsChecked = false;
             }
         }
 
-        private void optWeaponAnalysis_Checked(object sender, RoutedEventArgs e) {
-            if (curRace != null) {
+        private void optWeaponAnalysis_Checked(object sender, RoutedEventArgs e)
+        {
+            if (curRace != null)
+            {
                 UpdateWeaponAnalysis();
             }
         }
 
-        private void optAnalyzeWeapon_Checked(object sender, RoutedEventArgs e) {
+        private void optAnalyzeWeapon_Checked(object sender, RoutedEventArgs e)
+        {
             // null check necessary during initialization
-            if (cmbWeapFC != null) {
+            if (cmbWeapFC != null)
+            {
                 bool analyzeWeapon = optAnalyzeWeapon.IsChecked == true;
                 cmbWeapFC.IsEnabled = analyzeWeapon;
                 txtWeapFCRange.IsEnabled = analyzeWeapon;
@@ -1206,19 +1467,24 @@ namespace AuroraDashboard {
                 txtWeapShipSpeed.IsEnabled = analyzeWeapon;
             }
 
-            if (curRace != null) {
+            if (curRace != null)
+            {
                 PopulateWeaponList();
             }
         }
 
-        private void chkAnalyzeObsolete_Click(object sender, RoutedEventArgs e) {
-            if (curRace != null) {
+        private void chkAnalyzeObsolete_Click(object sender, RoutedEventArgs e)
+        {
+            if (curRace != null)
+            {
                 PopulateWeaponList();
             }
         }
 
-        private void cmbWeapFC_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-            if(curRace != null && cmbWeapFC.SelectedIndex >= 0) {
+        private void cmbWeapFC_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (curRace != null && cmbWeapFC.SelectedIndex >= 0)
+            {
                 AurCompBFC bfc = (AurCompBFC)curRace.knownCompIdx[ComponentType.BFC][cmbWeapFC.SelectedIndex].component;
 
                 txtWeapFCRange.Text = bfc.rangeMax.ToString();
@@ -1226,14 +1492,18 @@ namespace AuroraDashboard {
             }
         }
 
-        private void chkMineIncludeCiv_Click(object sender, RoutedEventArgs e) {
-            if (curRace != null) {
+        private void chkMineIncludeCiv_Click(object sender, RoutedEventArgs e)
+        {
+            if (curRace != null)
+            {
                 RecalculateMiningCharts();
             }
         }
 
-        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e) {
-            if (e.Source is TabControl) {
+        private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e.Source is TabControl)
+            {
                 piePopulation.UpdaterState = tabPopulations.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
 
                 pieStockpiles.UpdaterState = tabMinerals.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
@@ -1248,11 +1518,13 @@ namespace AuroraDashboard {
             }
         }
 
-        private void CollectionViewSource_Filter(object sender, FilterEventArgs e) {
+        private void CollectionViewSource_Filter(object sender, FilterEventArgs e)
+        {
 
         }
 
-        private void txtPriceProj_TextChanged(object sender, TextChangedEventArgs e) {
+        private void txtPriceProj_TextChanged(object sender, TextChangedEventArgs e)
+        {
             //CalcMineralPrice();
         }
     }
