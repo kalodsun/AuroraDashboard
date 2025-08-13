@@ -736,7 +736,7 @@ namespace AuroraDashboard
         {
             RecalculatePopPie();
 
-            RecalculatePopSummaryText();
+            RecalculateEmpireSummary();
         }
 
         public class EmpireSummaryEntry
@@ -746,7 +746,7 @@ namespace AuroraDashboard
             public string Category { get; set; }
         }
 
-        void RecalculatePopSummaryText()
+        void RecalculateEmpireSummary()
         {
             List<EmpireSummaryEntry> EmpireSummaryList = new List<EmpireSummaryEntry>();
 
@@ -874,7 +874,7 @@ namespace AuroraDashboard
                 Category = "Maintenance"
             });
 
-            double milTonSum = 0, milShipTonSum = 0, comTonSum = 0, comShipTonSum = 0, civTonSum = 0;
+            double milTonSum = 0, milShipTonSum = 0, comTonSum = 0, comShipTonSum = 0, civTonSum = 0, fighterCount = 0, fighterTonnage = 0;
 
             double cargoCap = 0;
             double cargoThroughput = 0;
@@ -906,6 +906,12 @@ namespace AuroraDashboard
                     {
                         comShipTonSum += ship.shipClass.tonnage;
                     }
+                }
+
+                if (ship.shipClass.isFighter)
+                {
+                    fighterCount++;
+                    fighterTonnage += ship.shipClass.tonnage;
                 }
 
                 if (ship.shipClass.cargoCapacity > 0)
@@ -1014,6 +1020,19 @@ namespace AuroraDashboard
             {
                 Description = "Civilian Tonnage",
                 Value = civTonSum.ToString("N0"),
+                Category = "Fleets"
+            });
+
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
+                Description = "Fighter Count",
+                Value = fighterCount.ToString("N0"),
+                Category = "Fleets"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
+                Description = "Fighter Tonnage",
+                Value = fighterTonnage.ToString("N0"),
                 Category = "Fleets"
             });
 
