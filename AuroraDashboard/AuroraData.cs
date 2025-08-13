@@ -141,6 +141,7 @@ namespace AuroraDashboard
         public bool isTanker;
         public bool isCollier;
         public bool isSupplyShip;
+        public bool isFighter;
         public AurHull hull;
         public Dictionary<ComponentType, List<Comp>> components = new Dictionary<ComponentType, List<Comp>>();
 
@@ -934,6 +935,7 @@ namespace AuroraDashboard
                     cls.isTanker = reader.GetInt32(getCol(reader, "FuelTanker")) != 0;
                     cls.isCollier = reader.GetInt32(getCol(reader, "Collier")) != 0;
                     cls.isSupplyShip = reader.GetInt32(getCol(reader, "SupplyShip")) != 0;
+                    cls.isFighter = reader.GetInt32(getCol(reader, "FighterClass")) != 0;
 
                     game.classIdx.Add(cls.ID, cls);
                     game.raceIdx[reader.GetInt32(getCol(reader, "RaceID"))].classes.Add(cls);
