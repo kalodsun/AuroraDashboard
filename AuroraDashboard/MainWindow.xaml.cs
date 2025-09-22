@@ -356,6 +356,55 @@ namespace AuroraDashboard
             PopulatePopSummary();
         }
 
+        private void DrawGalacticMap()
+        {
+            GalacticMapCanvas.Children.Clear();
+
+            if (curRace == null)
+            {
+                return;
+            }
+
+            // Find the bounding box of the systems
+            double minX = double.MaxValue, maxX = double.MinValue, minY = double.MaxValue, maxY = double.MinValue;
+            foreach (var system in curRace.knownSystems)
+            {
+                if (system.x < minX) minX = system.x;
+                if (system.x > maxX) maxX = system.x;
+                if (system.y < minY) minY = system.y;
+                if (system.y > maxY) maxY = system.y;
+            }
+
+            double rangeX = maxX - minX;
+            double rangeY = maxY - minY;
+
+            if (rangeX == 0) rangeX = 1;
+            if (rangeY == 0) rangeY = 1;
+
+            double scaleX = GalacticMapCanvas.ActualWidth / rangeX;
+            double scaleY = GalacticMapCanvas.ActualHeight / rangeY;
+            double scale = Math.Min(scaleX, scaleY) * 0.9; // Use 90% of the available space
+
+            foreach (var system in curRace.knownSystems)
+            {
+                var ellipse = new Ellipse
+                {
+                    Width = 5,
+                    Height = 5,
+                    Fill = Brushes.White,
+                    ToolTip = system.Name
+                };
+
+                double canvasX = (system.x - minX) * scale + (GalacticMapCanvas.ActualWidth - rangeX * scale) / 2;
+                double canvasY = (system.y - minY) * scale + (GalacticMapCanvas.ActualHeight - rangeY * scale) / 2;
+
+                Canvas.SetLeft(ellipse, canvasX);
+                Canvas.SetTop(ellipse, canvasY);
+
+                GalacticMapCanvas.Children.Add(ellipse);
+            }
+        }
+
         void PopulateWeaponList()
         {
             lstWeapons.Items.Clear();
@@ -1556,6 +1605,11 @@ namespace AuroraDashboard
                 chrtProspect.UpdaterState = tabProspecting.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
 
                 chrtWeapons.UpdaterState = tabWeapons.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
+
+                if (tabGalMap.IsSelected)
+                {
+                    DrawGalacticMap();
+                }
             }
         }
 
