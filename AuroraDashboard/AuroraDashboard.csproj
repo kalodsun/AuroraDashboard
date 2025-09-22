@@ -20,4 +20,7 @@
     <PackageReference Include="SQLitePCLRaw.provider.dynamic_cdecl" Version="3.0.1" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AuroraDashboard.Data\AuroraDashboard.Data.csproj" />
+  </ItemGroup>
 </Project>
