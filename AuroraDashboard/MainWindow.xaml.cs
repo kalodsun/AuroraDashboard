@@ -413,6 +413,32 @@ namespace AuroraDashboard
             _mapInitialized = false;
         }
 
+        private void InitGalacticMap()
+        {
+            // Find the bounding box of the systems
+            double minX = double.MaxValue, maxX = double.MinValue, minY = double.MaxValue, maxY = double.MinValue;
+            foreach (var system in curRace.knownSystems)
+            {
+                if (system.x < minX) minX = system.x;
+                if (system.x > maxX) maxX = system.x;
+                if (system.y < minY) minY = system.y;
+                if (system.y > maxY) maxY = system.y;
+            }
+
+            double rangeX = maxX - minX;
+            double rangeY = maxY - minY;
+
+            if (rangeX == 0) rangeX = 1;
+            if (rangeY == 0) rangeY = 1;
+
+            double scaleX = GalacticMapCanvas.ActualWidth / rangeX;
+            double scaleY = GalacticMapCanvas.ActualHeight / rangeY;
+            _zoom = Math.Min(scaleX, scaleY) * 0.9;
+
+            _offset.X = (GalacticMapCanvas.ActualWidth - rangeX * _zoom) / 2 - minX * _zoom;
+            _offset.Y = (GalacticMapCanvas.ActualHeight - rangeY * _zoom) / 2 - minY * _zoom;
+        }
+
         private void DrawGalacticMap()
         {
             GalacticMapCanvas.Children.Clear();
@@ -421,35 +447,6 @@ namespace AuroraDashboard
             {
                 return;
             }
-
-            if (!_mapInitialized)
-            {
-                // Find the bounding box of the systems
-                double minX = double.MaxValue, maxX = double.MinValue, minY = double.MaxValue, maxY = double.MinValue;
-                foreach (var system in curRace.knownSystems)
-                {
-                    if (system.x < minX) minX = system.x;
-                    if (system.x > maxX) maxX = system.x;
-                    if (system.y < minY) minY = system.y;
-                    if (system.y > maxY) maxY = system.y;
-                }
-
-                double rangeX = maxX - minX;
-                double rangeY = maxY - minY;
-
-                if (rangeX == 0) rangeX = 1;
-                if (rangeY == 0) rangeY = 1;
-
-                double scaleX = GalacticMapCanvas.ActualWidth / rangeX;
-                double scaleY = GalacticMapCanvas.ActualHeight / rangeY;
-                _zoom = Math.Min(scaleX, scaleY) * 0.9;
-
-                _offset.X = (GalacticMapCanvas.ActualWidth - rangeX * _zoom) / 2 - minX * _zoom;
-                _offset.Y = (GalacticMapCanvas.ActualHeight - rangeY * _zoom) / 2 - minY * _zoom;
-
-                _mapInitialized = true;
-            }
-
 
             foreach (var system in curRace.knownSystems)
             {
