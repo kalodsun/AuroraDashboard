@@ -1026,6 +1026,7 @@ namespace AuroraDashboard
                     game.shipIdx.Add(ship.ID, ship);
                 }
 
+                cmd = new SqliteCommand("SELECT * FROM FCT_Ship WHERE" + GameCl + ";", con);
                 reader = cmd.ExecuteReader();
 
                 while (reader.Read())
