@@ -1699,7 +1699,11 @@ namespace AuroraDashboard
 
         private void txtPriceProj_TextChanged(object sender, TextChangedEventArgs e)
         {
-            //CalcMineralPrice();
+            double dummy;
+            if (double.TryParse(txtPriceProj.Text, out dummy) && curRace != null)
+            {
+                CalcMineralPrice();
+            }
         }
     }
 }
