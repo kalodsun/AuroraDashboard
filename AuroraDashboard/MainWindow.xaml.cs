@@ -874,7 +874,7 @@ namespace AuroraDashboard
                 Category = "Maintenance"
             });
 
-            double milTonSum = 0, milShipTonSum = 0, comTonSum = 0, comShipTonSum = 0, civTonSum = 0, fighterCount = 0, fighterTonnage = 0;
+            double milTonSum = 0, milShipTonSum = 0, comTonSum = 0, comShipTonSum = 0, civTonSum = 0, fighterCount = 0, fighterTonnage = 0, milShipCount = 0, comShipCount = 0, civShipCount = 0;
 
             double cargoCap = 0;
             double cargoThroughput = 0;
@@ -889,10 +889,12 @@ namespace AuroraDashboard
                 if (ship.isCivilianLine)
                 {
                     civTonSum += ship.shipClass.tonnage;
+                    civShipCount++;
                 }
                 else if (ship.shipClass.isMilitary)
                 {
                     milTonSum += ship.shipClass.tonnage;
+                    milShipCount++;
                     if (ship.shipClass.maxSpeed > 1)
                     {
                         milShipTonSum += ship.shipClass.tonnage;
@@ -901,6 +903,7 @@ namespace AuroraDashboard
                 else
                 {
                     comTonSum += ship.shipClass.tonnage;
+                    comShipCount++;
 
                     if (ship.shipClass.maxSpeed > 1)
                     {
@@ -1020,6 +1023,25 @@ namespace AuroraDashboard
             {
                 Description = "Civilian Tonnage",
                 Value = civTonSum.ToString("N0"),
+                Category = "Fleets"
+            });
+
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
+                Description = "Military Ships",
+                Value = milShipCount.ToString("N0"),
+                Category = "Fleets"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
+                Description = "Commercial Ships",
+                Value = comShipCount.ToString("N0"),
+                Category = "Fleets"
+            });
+            EmpireSummaryList.Add(new EmpireSummaryEntry()
+            {
+                Description = "Civilian Ships",
+                Value = civShipCount.ToString("N0"),
                 Category = "Fleets"
             });
 
