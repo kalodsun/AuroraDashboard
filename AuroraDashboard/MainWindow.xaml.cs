@@ -165,6 +165,12 @@ namespace AuroraDashboard
         public SeriesCollection pieMiningSeries = new SeriesCollection();
         public GridView prospectGrid;
 
+        private double _zoom = 1.0;
+        private Point _offset = new Point();
+        private bool _mapInitialized = false;
+        private bool _isPanning = false;
+        private Point _panStartPoint;
+
         void InitMineralSelector(ComboBox comboBox)
         {
             comboBox.Items.Add("All minerals (amount)");
@@ -252,6 +258,55 @@ namespace AuroraDashboard
             {
                 prospectGrid.Columns.Add(new GridViewColumn() { Header = Enum.GetName(typeof(MineralType), i), Width = 103, DisplayMemberBinding = new Binding("MineralValues[" + i + "]") });
             }
+
+            GalacticMapCanvas.MouseWheel += GalacticMapCanvas_MouseWheel;
+            GalacticMapCanvas.MouseDown += GalacticMapCanvas_MouseDown;
+            GalacticMapCanvas.MouseMove += GalacticMapCanvas_MouseMove;
+            GalacticMapCanvas.MouseUp += GalacticMapCanvas_MouseUp;
+        }
+
+        private void GalacticMapCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                _isPanning = true;
+                _panStartPoint = e.GetPosition(GalacticMapCanvas);
+                GalacticMapCanvas.CaptureMouse();
+            }
+        }
+
+        private void GalacticMapCanvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isPanning)
+            {
+                Point currentPoint = e.GetPosition(GalacticMapCanvas);
+                _offset.X += currentPoint.X - _panStartPoint.X;
+                _offset.Y += currentPoint.Y - _panStartPoint.Y;
+                _panStartPoint = currentPoint;
+                DrawGalacticMap();
+            }
+        }
+
+        private void GalacticMapCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isPanning)
+            {
+                _isPanning = false;
+                GalacticMapCanvas.ReleaseMouseCapture();
+            }
+        }
+
+        private void GalacticMapCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            Point mousePos = e.GetPosition(GalacticMapCanvas);
+            double zoomFactor = e.Delta > 0 ? 1.1 : 1 / 1.1;
+
+            _zoom *= zoomFactor;
+
+            _offset.X = mousePos.X - (mousePos.X - _offset.X) * zoomFactor;
+            _offset.Y = mousePos.Y - (mousePos.Y - _offset.Y) * zoomFactor;
+
+            DrawGalacticMap();
         }
 
         private async void btnLoadDB_Click(object sender, RoutedEventArgs e)
@@ -354,6 +409,82 @@ namespace AuroraDashboard
             PopulateWeaponList();
 
             PopulatePopSummary();
+
+            _mapInitialized = false;
+        }
+
+        private void DrawGalacticMap()
+        {
+            GalacticMapCanvas.Children.Clear();
+
+            if (curRace == null)
+            {
+                return;
+            }
+
+            if (!_mapInitialized)
+            {
+                // Find the bounding box of the systems
+                double minX = double.MaxValue, maxX = double.MinValue, minY = double.MaxValue, maxY = double.MinValue;
+                foreach (var system in curRace.knownSystems)
+                {
+                    if (system.x < minX) minX = system.x;
+                    if (system.x > maxX) maxX = system.x;
+                    if (system.y < minY) minY = system.y;
+                    if (system.y > maxY) maxY = system.y;
+                }
+
+                double rangeX = maxX - minX;
+                double rangeY = maxY - minY;
+
+                if (rangeX == 0) rangeX = 1;
+                if (rangeY == 0) rangeY = 1;
+
+                double scaleX = GalacticMapCanvas.ActualWidth / rangeX;
+                double scaleY = GalacticMapCanvas.ActualHeight / rangeY;
+                _zoom = Math.Min(scaleX, scaleY) * 0.9;
+
+                _offset.X = (GalacticMapCanvas.ActualWidth - rangeX * _zoom) / 2 - minX * _zoom;
+                _offset.Y = (GalacticMapCanvas.ActualHeight - rangeY * _zoom) / 2 - minY * _zoom;
+
+                _mapInitialized = true;
+            }
+
+
+            foreach (var system in curRace.knownSystems)
+            {
+                var ellipse = new Ellipse
+                {
+                    Width = 5,
+                    Height = 5,
+                    Fill = Brushes.White,
+                    ToolTip = system.Name
+                };
+
+                var textBlock = new TextBlock
+                {
+                    Text = system.Name,
+                    Foreground = Brushes.White,
+                    FontSize = 10,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+
+                var grid = new Grid();
+                grid.RowDefinitions.Add(new RowDefinition());
+                grid.RowDefinitions.Add(new RowDefinition());
+                grid.Children.Add(ellipse);
+                grid.Children.Add(textBlock);
+                Grid.SetRow(ellipse, 0);
+                Grid.SetRow(textBlock, 1);
+
+                double canvasX = system.x * _zoom + _offset.X;
+                double canvasY = system.y * _zoom + _offset.Y;
+
+                Canvas.SetLeft(grid, canvasX - 2.5);
+                Canvas.SetTop(grid, canvasY - 2.5);
+
+                GalacticMapCanvas.Children.Add(grid);
+            }
         }
 
         void PopulateWeaponList()
@@ -1556,6 +1687,11 @@ namespace AuroraDashboard
                 chrtProspect.UpdaterState = tabProspecting.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
 
                 chrtWeapons.UpdaterState = tabWeapons.IsSelected ? UpdaterState.Running : UpdaterState.Paused;
+
+                if (tabGalMap.IsSelected)
+                {
+                    DrawGalacticMap();
+                }
             }
         }
 
