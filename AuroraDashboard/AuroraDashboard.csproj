@@ -6,6 +6,7 @@
     <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
     <StartupObject>AuroraDashboard.App</StartupObject>
     <UseWindowsForms>False</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="LiveCharts" Version="0.9.7" />
